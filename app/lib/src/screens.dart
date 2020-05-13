@@ -120,15 +120,13 @@ class PlayerStateView extends StatelessWidget {
       stability: state.stability,
     );
 
-    final footer = Center(child: Text(state.leader));
-
     Widget body;
     switch (state.whichCard()) {
       case PlayerState_Card.actionCard:
-        body = ActionCardBody(state.actionCard);
+        body = ActionCardBody(state.actionCard, onInput);
         break;
       case PlayerState_Card.infoCard:
-        body = InfoCardBody(state.infoCard);
+        body = InfoCardBody(state.infoCard, onInput);
         break;
       case PlayerState_Card.votingCard:
         body = VotingCardBody(state.votingCard);
@@ -138,11 +136,15 @@ class PlayerStateView extends StatelessWidget {
         body = Text('Unknown card type ${state.whichCard()}');
     }
 
-    return DismissibleCardView(
-      header: header,
-      body: body,
-      footer: footer,
-      onDismiss: onInput,
+    final footer = Center(child: Text(state.leader));
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Expanded(flex: 1, child: header),
+        Expanded(flex: 4, child: body),
+        Expanded(flex: 1, child: footer),
+      ],
     );
   }
 }
@@ -173,29 +175,39 @@ class PlayerStats extends StatelessWidget {
 }
 
 class ActionCardBody extends StatelessWidget {
-  const ActionCardBody(this.card);
+  const ActionCardBody(this.card, this.onDismiss);
 
   final ActionCard card;
+  final ValueSetter<String> onDismiss;
 
   @override
   Widget build(BuildContext context) {
-    final content = material.Card(child: Center(child: Text(card.content)));
+    final content = Center(child: Text(card.content));
     final advisor = Text(card.advisor);
-    return Column(children: [
-      Expanded(flex: 3, child: content),
-      Expanded(child: advisor),
-    ]);
+    final child = material.Card(child: Text('picture'));
+    return DismissibleCardView(
+      header: content,
+      body: child,
+      footer: advisor,
+      onDismiss: onDismiss,
+    );
   }
 }
 
 class InfoCardBody extends StatelessWidget {
-  const InfoCardBody(this.card);
+  const InfoCardBody(this.card, this.onDismiss);
 
   final InfoCard card;
+  final ValueSetter<String> onDismiss;
 
   @override
   Widget build(BuildContext context) {
-    return Text(card.text);
+    return DismissibleCardView(
+      header: Text(""),
+      body: Center(child: Text(card.text)),
+      footer: Text(""),
+      onDismiss: onDismiss,
+    );
   }
 }
 
