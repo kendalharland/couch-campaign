@@ -114,10 +114,15 @@ class PlayerStateView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final header = PlayerStats(
-      health: state.health,
-      wealth: state.wealth,
-      stability: state.stability,
+    final background = Colors.blueAccent;
+
+    final header = Container(
+      decoration: BoxDecoration(color: background),
+      child: PlayerStats(
+        health: state.health,
+        wealth: state.wealth,
+        stability: state.stability,
+      ),
     );
 
     Widget body;
@@ -135,8 +140,17 @@ class PlayerStateView extends StatelessWidget {
       default:
         body = Text('Unknown card type ${state.whichCard()}');
     }
+    body = Padding(padding: EdgeInsets.all(16), child: body);
 
-    final footer = Center(child: Text(state.leader));
+    final footer = Container(
+      decoration: BoxDecoration(color: background),
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: LeaderStats(leader: state.leader, daysInOffice: 15),
+        ),
+      ),
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -144,6 +158,32 @@ class PlayerStateView extends StatelessWidget {
         Expanded(flex: 1, child: header),
         Expanded(flex: 4, child: body),
         Expanded(flex: 1, child: footer),
+      ],
+    );
+  }
+}
+
+class LeaderStats extends StatelessWidget {
+  const LeaderStats({@required this.leader, @required this.daysInOffice});
+
+  final String leader;
+  final int daysInOffice;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(leader, style: TextStyle(fontSize: 18)),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            '$daysInOffice days in office',
+            style: TextStyle(fontSize: 36),
+          ),
+        ),
       ],
     );
   }
@@ -162,17 +202,17 @@ class PlayerStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = TextStyle(
-      fontSize: 10,
+    final style = TextStyle(
+      fontSize: 18,
       fontWeight: FontWeight.bold,
     );
 
     return Center(
       child: Row(
         children: [
-          Expanded(child: Center(child: Text('H($health)'))),
-          Expanded(child: Center(child: Text('W($wealth)'))),
-          Expanded(child: Center(child: Text('S($stability)'))),
+          Expanded(child: Center(child: Text('H($health)', style: style))),
+          Expanded(child: Center(child: Text('W($wealth)', style: style))),
+          Expanded(child: Center(child: Text('S($stability)', style: style))),
         ],
       ),
     );
@@ -187,12 +227,13 @@ class ActionCardBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = Center(child: Text(card.content));
-    final advisor = Text(card.advisor);
-    final child = material.Card(child: Text('picture'));
+    final style = TextStyle(fontSize: 18);
+    final content = Center(child: Text(card.content, style: style));
+    final advisor = Center(child: Text(card.advisor, style: style));
+    final cardWidget = Center(child: material.Card(child: Text('picture')));
     return DismissibleCardView(
       header: content,
-      body: child,
+      card: cardWidget,
       footer: advisor,
       onDismiss: onDismiss,
     );
@@ -208,9 +249,9 @@ class InfoCardBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DismissibleCardView(
-      header: Text(""),
-      body: Center(child: Text(card.text)),
-      footer: Text(""),
+      header: Center(child: Text("")),
+      card: Center(child: Text(card.text)),
+      footer: Center(child: Text("")),
       onDismiss: onDismiss,
     );
   }
@@ -230,30 +271,30 @@ class VotingCardBody extends StatelessWidget {
 class DismissibleCardView extends StatelessWidget {
   const DismissibleCardView({
     @required this.header,
-    @required this.body,
+    @required this.card,
     @required this.footer,
     @required this.onDismiss,
   });
 
   final ValueChanged<String> onDismiss;
   final Widget header;
-  final Widget body;
+  final Widget card;
   final Widget footer;
 
   @override
   Widget build(BuildContext context) {
-    final card = Dismissible(
-      key: Key('${body.hashCode}'),
+    final body = Dismissible(
+      key: Key('${card.hashCode}'),
       direction: DismissDirection.horizontal,
       onDismissed: _onDismiss,
-      child: body,
+      child: card,
     );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Expanded(flex: 1, child: header),
-        Expanded(flex: 4, child: card),
+        Expanded(flex: 4, child: body),
         Expanded(flex: 1, child: footer),
       ],
     );
