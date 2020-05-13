@@ -162,6 +162,11 @@ class PlayerStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textStyle = TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.bold,
+    );
+
     return Center(
       child: Row(
         children: [

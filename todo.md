@@ -31,3 +31,11 @@
 * Raise income taxes
 * Raise taxes on local companies
 * Endorse local politician running for mayor / small office
+
+# Noteworthy
+* Alternate text themes: 
+  * Fonts
+  * neucha
+  * gamja flower
+  * schoolbell
+  * Patrick Hand SC

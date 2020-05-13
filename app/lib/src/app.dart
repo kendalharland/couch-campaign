@@ -1,6 +1,7 @@
 import 'package:couchcampaign/src/clients.dart';
 import 'package:couchcampaign/src/screens.dart';
 import 'package:flutter/material.dart' hide Card;
+import 'package:google_fonts/google_fonts.dart';
 import 'package:xhttp/xhttp.dart' as http;
 
 class App extends StatelessWidget {
@@ -13,6 +14,7 @@ class App extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
+        textTheme: GoogleFonts.patrickHandScTextTheme(),
       ),
       home: Scaffold(body: CouchCampaign(gameServerAddress)),
     );
