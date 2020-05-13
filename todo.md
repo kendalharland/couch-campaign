@@ -14,7 +14,7 @@
 * [DONE] Randomly generate and order card decks (shuffle)
 * Support joining game lobbies.
 * Regenerate the deck once it is empty.
-* Render the card according to the mockup I drew.
+* [DONE] Render the card according to the mockup I drew.
 * Create a "game over" screen. (player has run out of content).
 * Return to the main menu when the game is over.
 * Show a disconnect message and return to main menu when socket is closed.

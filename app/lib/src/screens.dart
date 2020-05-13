@@ -114,14 +114,18 @@ class PlayerStateView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = Colors.blueAccent;
+    final shade = 50;
+    final hue = Colors.indigo;
+    final menuColor = hue[shade * 8];
+    final bodyColor = hue[shade];
 
     final header = Container(
-      decoration: BoxDecoration(color: background),
+      decoration: BoxDecoration(color: menuColor),
       child: PlayerStats(
         health: state.health,
         wealth: state.wealth,
         stability: state.stability,
+        color: bodyColor,
       ),
     );
 
@@ -140,14 +144,21 @@ class PlayerStateView extends StatelessWidget {
       default:
         body = Text('Unknown card type ${state.whichCard()}');
     }
-    body = Padding(padding: EdgeInsets.all(16), child: body);
+    body = Container(
+      decoration: BoxDecoration(color: bodyColor),
+      child: Padding(padding: EdgeInsets.all(24), child: body),
+    );
 
     final footer = Container(
-      decoration: BoxDecoration(color: background),
+      decoration: BoxDecoration(color: menuColor),
       child: Center(
         child: Padding(
           padding: EdgeInsets.all(16),
-          child: LeaderStats(leader: state.leader, daysInOffice: 15),
+          child: LeaderStats(
+            leader: state.leader,
+            daysInOffice: 15,
+            color: bodyColor,
+          ),
         ),
       ),
     );
@@ -164,10 +175,15 @@ class PlayerStateView extends StatelessWidget {
 }
 
 class LeaderStats extends StatelessWidget {
-  const LeaderStats({@required this.leader, @required this.daysInOffice});
+  const LeaderStats({
+    @required this.leader,
+    @required this.daysInOffice,
+    this.color,
+  });
 
   final String leader;
   final int daysInOffice;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -175,13 +191,13 @@ class LeaderStats extends StatelessWidget {
       children: [
         Align(
           alignment: Alignment.centerLeft,
-          child: Text(leader, style: TextStyle(fontSize: 18)),
+          child: Text(leader, style: TextStyle(fontSize: 22, color: color)),
         ),
         Align(
           alignment: Alignment.centerLeft,
           child: Text(
             '$daysInOffice days in office',
-            style: TextStyle(fontSize: 36),
+            style: TextStyle(fontSize: 36, color: color),
           ),
         ),
       ],
@@ -194,17 +210,20 @@ class PlayerStats extends StatelessWidget {
     @required this.health,
     @required this.wealth,
     @required this.stability,
+    this.color,
   });
 
   final int health;
   final int wealth;
   final int stability;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     final style = TextStyle(
-      fontSize: 18,
+      fontSize: 24,
       fontWeight: FontWeight.bold,
+      color: color,
     );
 
     return Center(
