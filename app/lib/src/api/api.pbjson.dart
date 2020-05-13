@@ -16,7 +16,7 @@ const SessionState$json = const {
 const Message$json = const {
   '1': 'Message',
   '2': const [
-    const {'1': 'game_state', '3': 1, '4': 1, '5': 11, '6': '.couchcampaign.GameState', '9': 0, '10': 'gameState'},
+    const {'1': 'player_state', '3': 1, '4': 1, '5': 11, '6': '.couchcampaign.PlayerState', '9': 0, '10': 'playerState'},
     const {'1': 'session_state', '3': 2, '4': 1, '5': 14, '6': '.couchcampaign.SessionState', '9': 0, '10': 'sessionState'},
   ],
   '8': const [
@@ -31,8 +31,8 @@ const GameInfo$json = const {
   ],
 };
 
-const GameState$json = const {
-  '1': 'GameState',
+const PlayerState$json = const {
+  '1': 'PlayerState',
   '2': const [
     const {'1': 'leader', '3': 1, '4': 1, '5': 9, '10': 'leader'},
     const {'1': 'health', '3': 2, '4': 1, '5': 5, '10': 'health'},

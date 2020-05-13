@@ -1,6 +1,5 @@
-import 'package:couchcampaign/src/lobby_manager_client.dart';
-import 'package:couchcampaign/src/main_menu_screen.dart';
-import 'package:couchcampaign/src/rpc_client.dart';
+import 'package:couchcampaign/src/clients.dart';
+import 'package:couchcampaign/src/screens.dart';
 import 'package:flutter/material.dart' hide Card;
 import 'package:xhttp/xhttp.dart' as http;
 
@@ -36,7 +35,8 @@ class CouchCampaignState extends State<CouchCampaign> {
   Widget build(BuildContext context) {
     if (_screen == null) {
       final client = http.Client();
-      final lmc = LobbyManagerClient(RpcClient(client, widget.address));
+      final rpcClient = RpcClient(client, widget.address);
+      final lmc = LobbyManagerClient(rpcClient);
       _screen = MainMenuScreen(lmc, onGameCreated: _setScreen);
     }
     return _screen;

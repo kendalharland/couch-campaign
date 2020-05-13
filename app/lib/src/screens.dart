@@ -1,8 +1,40 @@
 import 'package:couchcampaign/src/api/api.pb.dart';
-import 'package:couchcampaign/src/game_client.dart';
+import 'package:couchcampaign/src/clients.dart';
 import 'package:couchcampaign/src/session.dart';
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter/material.dart' as material;
+import 'package:flutter/material.dart';
+import 'package:xhttp/xhttp.dart' as http;
+
+class MainMenuScreen extends StatelessWidget {
+  const MainMenuScreen(this.lmc, {@required this.onGameCreated});
+
+  final LobbyManagerClient lmc;
+  final ValueSetter<Widget> onGameCreated;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            RaisedButton(onPressed: _createGame, child: Text('Create game')),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createGame() async {
+    final response = await lmc.createGame(CreateGameRequest());
+    await Future.delayed(const Duration(milliseconds: 200));
+    final client = GameClient(RpcClient(http.Client(), response.gameUrl));
+    final session = await client.joinGame();
+    onGameCreated(GameSessionView(client, session));
+  }
+}
 
 class GameSessionView extends StatefulWidget {
   GameSessionView(this.client, this.session);
@@ -42,18 +74,19 @@ class GameSessionViewState extends State<GameSessionView> {
           case SessionState.LOBBY:
             return LobbyView(widget.client);
           case SessionState.RUNNING:
+            // The next message will contain the player state.
             return Center(child: Text('running'));
           default:
             return Text('bad state ${message.sessionState}');
         }
         break;
-      case Message_Content.gameState:
-        return GameStateView(
-          state: message.gameState,
+      case Message_Content.playerState:
+        return PlayerStateView(
+          state: message.playerState,
           onInput: widget.session.send,
         );
       default:
-        return Text('session has no state');
+        return Text('error: session has no state');
     }
   }
 }
@@ -73,10 +106,10 @@ class LobbyView extends StatelessWidget {
   }
 }
 
-class GameStateView extends StatelessWidget {
-  const GameStateView({@required this.state, @required this.onInput});
+class PlayerStateView extends StatelessWidget {
+  const PlayerStateView({@required this.state, @required this.onInput});
 
-  final GameState state;
+  final PlayerState state;
   final ValueSetter<String> onInput;
 
   @override
@@ -91,13 +124,13 @@ class GameStateView extends StatelessWidget {
 
     Widget body;
     switch (state.whichCard()) {
-      case GameState_Card.actionCard:
+      case PlayerState_Card.actionCard:
         body = ActionCardBody(state.actionCard);
         break;
-      case GameState_Card.infoCard:
+      case PlayerState_Card.infoCard:
         body = InfoCardBody(state.infoCard);
         break;
-      case GameState_Card.votingCard:
+      case PlayerState_Card.votingCard:
         body = VotingCardBody(state.votingCard);
         onInput("got the voting card");
         break;

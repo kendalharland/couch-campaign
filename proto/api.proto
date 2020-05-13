@@ -10,14 +10,14 @@ enum SessionState {
 
 message Message {
   oneof content {
-    GameState game_state = 1;
+    PlayerState player_state = 1;
     SessionState session_state = 2;
   }
 }
 
 message GameInfo { string id = 1; }
 
-message GameState {
+message PlayerState {
   string leader = 1;
   int32 health = 2;
   int32 wealth = 3;

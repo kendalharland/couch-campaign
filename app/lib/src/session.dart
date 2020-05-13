@@ -1,14 +1,8 @@
 import 'dart:async';
 
 import 'package:couchcampaign/src/api/api.pb.dart';
-import 'package:couchcampaign/src/message_decoder.dart';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-
-//
-// Problems:
-// * In-order: buffered delivery of game messages
-// * Messy code: the protocol should be entirely specified in terms of protos.
 
 typedef MessageHandler = void Function(Message);
 
@@ -16,8 +10,14 @@ class GameSession extends ValueNotifier<Message> {
   static Future<GameSession> connect(Uri address) async =>
       GameSession(WebSocketChannel.connect(address));
 
+  static StreamTransformer<dynamic, Message> _decoder() =>
+      StreamTransformer<dynamic, Message>.fromHandlers(
+        handleData: (data, EventSink<Message> sink) =>
+            sink.add(Message.fromBuffer(data)),
+      );
+
   GameSession(this._ws) : super(null) {
-    _wsSub = _ws.stream.transform<Message>(messageDecoder()).listen((message) {
+    _wsSub = _ws.stream.transform<Message>(_decoder()).listen((message) {
       value = message;
     });
   }

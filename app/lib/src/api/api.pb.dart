@@ -14,20 +14,20 @@ import 'api.pbenum.dart';
 export 'api.pbenum.dart';
 
 enum Message_Content {
-  gameState, 
+  playerState, 
   sessionState, 
   notSet
 }
 
 class Message extends $pb.GeneratedMessage {
   static const $core.Map<$core.int, Message_Content> _Message_ContentByTag = {
-    1 : Message_Content.gameState,
+    1 : Message_Content.playerState,
     2 : Message_Content.sessionState,
     0 : Message_Content.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo('Message', package: const $pb.PackageName('couchcampaign'), createEmptyInstance: create)
     ..oo(0, [1, 2])
-    ..aOM<GameState>(1, 'gameState', subBuilder: GameState.create)
+    ..aOM<PlayerState>(1, 'playerState', subBuilder: PlayerState.create)
     ..e<SessionState>(2, 'sessionState', $pb.PbFieldType.OE, defaultOrMaker: SessionState.LOBBY, valueOf: SessionState.valueOf, enumValues: SessionState.values)
     ..hasRequiredFields = false
   ;
@@ -51,15 +51,15 @@ class Message extends $pb.GeneratedMessage {
   void clearContent() => clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
-  GameState get gameState => $_getN(0);
+  PlayerState get playerState => $_getN(0);
   @$pb.TagNumber(1)
-  set gameState(GameState v) { setField(1, v); }
+  set playerState(PlayerState v) { setField(1, v); }
   @$pb.TagNumber(1)
-  $core.bool hasGameState() => $_has(0);
+  $core.bool hasPlayerState() => $_has(0);
   @$pb.TagNumber(1)
-  void clearGameState() => clearField(1);
+  void clearPlayerState() => clearField(1);
   @$pb.TagNumber(1)
-  GameState ensureGameState() => $_ensure(0);
+  PlayerState ensurePlayerState() => $_ensure(0);
 
   @$pb.TagNumber(2)
   SessionState get sessionState => $_getN(1);
@@ -102,21 +102,21 @@ class GameInfo extends $pb.GeneratedMessage {
   void clearId() => clearField(1);
 }
 
-enum GameState_Card {
+enum PlayerState_Card {
   actionCard, 
   infoCard, 
   votingCard, 
   notSet
 }
 
-class GameState extends $pb.GeneratedMessage {
-  static const $core.Map<$core.int, GameState_Card> _GameState_CardByTag = {
-    5 : GameState_Card.actionCard,
-    6 : GameState_Card.infoCard,
-    7 : GameState_Card.votingCard,
-    0 : GameState_Card.notSet
+class PlayerState extends $pb.GeneratedMessage {
+  static const $core.Map<$core.int, PlayerState_Card> _PlayerState_CardByTag = {
+    5 : PlayerState_Card.actionCard,
+    6 : PlayerState_Card.infoCard,
+    7 : PlayerState_Card.votingCard,
+    0 : PlayerState_Card.notSet
   };
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo('GameState', package: const $pb.PackageName('couchcampaign'), createEmptyInstance: create)
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo('PlayerState', package: const $pb.PackageName('couchcampaign'), createEmptyInstance: create)
     ..oo(0, [5, 6, 7])
     ..aOS(1, 'leader')
     ..a<$core.int>(2, 'health', $pb.PbFieldType.O3)
@@ -128,22 +128,22 @@ class GameState extends $pb.GeneratedMessage {
     ..hasRequiredFields = false
   ;
 
-  GameState._() : super();
-  factory GameState() => create();
-  factory GameState.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
-  factory GameState.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
-  GameState clone() => GameState()..mergeFromMessage(this);
-  GameState copyWith(void Function(GameState) updates) => super.copyWith((message) => updates(message as GameState));
+  PlayerState._() : super();
+  factory PlayerState() => create();
+  factory PlayerState.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory PlayerState.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  PlayerState clone() => PlayerState()..mergeFromMessage(this);
+  PlayerState copyWith(void Function(PlayerState) updates) => super.copyWith((message) => updates(message as PlayerState));
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
-  static GameState create() => GameState._();
-  GameState createEmptyInstance() => create();
-  static $pb.PbList<GameState> createRepeated() => $pb.PbList<GameState>();
+  static PlayerState create() => PlayerState._();
+  PlayerState createEmptyInstance() => create();
+  static $pb.PbList<PlayerState> createRepeated() => $pb.PbList<PlayerState>();
   @$core.pragma('dart2js:noInline')
-  static GameState getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GameState>(create);
-  static GameState _defaultInstance;
+  static PlayerState getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<PlayerState>(create);
+  static PlayerState _defaultInstance;
 
-  GameState_Card whichCard() => _GameState_CardByTag[$_whichOneof(0)];
+  PlayerState_Card whichCard() => _PlayerState_CardByTag[$_whichOneof(0)];
   void clearCard() => clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
