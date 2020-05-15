@@ -4,8 +4,7 @@ go 1.13
 
 require (
 	github.com/gobuffalo/uuid v2.0.5+incompatible
-	github.com/gofrs/uuid v3.2.0+incompatible
-	github.com/gogo/protobuf v1.3.1
+	github.com/gofrs/uuid v3.2.0+incompatible // indirect
 	github.com/golang/protobuf v1.4.0
 	github.com/gonum/blas v0.0.0-20181208220705-f22b278b28ac // indirect
 	github.com/gonum/floats v0.0.0-20181209220543-c233463c7e82 // indirect
@@ -17,9 +16,5 @@ require (
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
-	github.com/julienschmidt/httprouter v1.3.0
-	github.com/pkg/profile v1.4.0
-	golang.org/x/text v0.3.2
-	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.22.0
 )
