@@ -4,12 +4,8 @@ import (
 	"container/heap"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 var _ heap.Interface = &cardHeap{}
@@ -165,95 +161,6 @@ func (h *cardHeap) debugDump(w io.Writer) {
 	for _, c := range h.nodes {
 		fmt.Fprintf(w, "%+v\n", c)
 	}
-}
-
-func loadDeck() (*Deck, error) {
-	res, err := http.Get(deckURL)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var cards []Card
-	// Parse the deck. It's stored in tab-separated-values (TVS) format. Each
-	// card is on a new line.
-	tsvLines := strings.SplitN(string(body), "\n", deckMaxSize)
-	for _, line := range tsvLines {
-		cardFields := strings.SplitN(line, "\t", cardFieldCount)
-		c, err := parseCardTSV(cardFields)
-		if err != nil {
-			return nil, fmt.Errorf("invalid card: %w", err)
-		}
-		cards = append(cards, c)
-	}
-	d := NewDeck(cards)
-	d.ShuffleActionCards()
-	return d, nil
-}
-
-func parseCardTSV(fields []string) (Card, error) {
-	parseInt := func(input string) (int, error) {
-		id, err := strconv.ParseInt(input, 10, 64)
-		if err != nil {
-			return -1, err
-		}
-		return int(id), nil
-	}
-
-	var c Card
-
-	for i := range fields {
-		fields[i] = strings.TrimSpace(fields[i])
-	}
-
-	id, err := parseInt(fields[cardID])
-	if err != nil {
-		return c, fmt.Errorf("invalid id: %w", err)
-	}
-
-	awe, err := parseInt(fields[cardAWE])
-	if err != nil {
-		return c, fmt.Errorf("invalid ams: %w", err)
-	}
-	ahe, err := parseInt(fields[cardAHE])
-	if err != nil {
-		return c, fmt.Errorf("invalid aps: %w", err)
-	}
-	ase, err := parseInt(fields[cardASE])
-	if err != nil {
-		return c, fmt.Errorf("invalid ajs: %w", err)
-	}
-
-	rwe, err := parseInt(fields[cardRWE])
-	if err != nil {
-		return c, fmt.Errorf("invalid rms: %w", err)
-	}
-	rhe, err := parseInt(fields[cardRHE])
-	if err != nil {
-		return c, fmt.Errorf("invalid rps: %w", err)
-	}
-	rse, err := parseInt(fields[cardRSE])
-	if err != nil {
-		return c, fmt.Errorf("invalid rjs: %w", err)
-	}
-
-	return actionCard{
-		ID:                 id,
-		Advisor:            fields[cardAdvisor],
-		Content:            fields[cardContent],
-		AcceptText:         fields[cardAcceptText],
-		AccWealthEffect:    awe,
-		AccHealthEffect:    ahe,
-		AccStabilityEffect: ase,
-		RejectText:         fields[cardRejectText],
-		RejWealthEffect:    rwe,
-		RejHealthEffect:    rhe,
-		RejStabilityEffect: rse,
-	}, nil
 }
 
 // Card priority.

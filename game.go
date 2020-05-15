@@ -23,7 +23,7 @@ const (
 	//
 	// This offseason -> campaign -> voting scheme is used to reward players who
 	// swipe cards quickly and avoid waiting on slower players.
-	numCardsBetweenElections = 2
+	numCardsBetweenElections = 10
 )
 
 var welcomeMessage = `
@@ -48,6 +48,8 @@ type Game struct {
 	stats    map[uuid.UUID]*stats
 	decks    map[uuid.UUID]*Deck
 	inputs   chan message
+
+	baseCards []Card
 }
 
 func NewGame(clients map[uuid.UUID]*Client) (*Game, error) {
@@ -56,23 +58,25 @@ func NewGame(clients map[uuid.UUID]*Client) (*Game, error) {
 		pids = append(pids, pid)
 	}
 
+	baseCards, err := loadBaseCards()
+	if err != nil {
+		return nil, fmt.Errorf("loadBaseCards: %w", err)
+	}
+	log.Println(baseCards)
+
 	g := &Game{
-		election: newElectionStateMachine(numCardsBetweenElections, pids),
-		pids:     pids,
-		clients:  clients,
-		decks:    make(map[uuid.UUID]*Deck),
-		jobs:     make(map[uuid.UUID]chan func(*Client)),
-		stats:    make(map[uuid.UUID]*stats),
-		inputs:   make(chan message, len(clients)),
+		election:  newElectionStateMachine(numCardsBetweenElections, pids),
+		pids:      pids,
+		clients:   clients,
+		decks:     make(map[uuid.UUID]*Deck),
+		jobs:      make(map[uuid.UUID]chan func(*Client)),
+		stats:     make(map[uuid.UUID]*stats),
+		inputs:    make(chan message, len(clients)),
+		baseCards: baseCards,
 	}
 
 	for _, pid := range pids {
-		d, err := loadDeck()
-		if err != nil {
-			return nil, fmt.Errorf("loadDeck: %w", err)
-		}
-
-		g.decks[pid] = d
+		g.decks[pid] = g.buildBaseDeck()
 		g.jobs[pid] = make(chan func(*Client), 2)
 		g.stats[pid] = newStats()
 	}
@@ -137,35 +141,17 @@ func (g *Game) handleInput(input message) {
 		case s.Wealth <= minStatValue || maxStatValue <= s.Wealth:
 			g.decks[input.pid].Clear()
 			g.decks[input.pid].InsertCardWithPriority(infoCard{"Your state is bankrupt and you are being forced out of office."}, maxCardPriority)
-			d, err := loadDeck()
-			if err != nil {
-				log.Fatal(err)
-			}
-			for !d.IsEmpty() {
-				g.decks[input.pid].InsertCard(d.PopTopCard())
-			}
+			g.decks[input.pid] = g.buildBaseDeck()
 			g.stats[input.pid] = newStats()
 		case s.Health <= minStatValue || maxStatValue <= s.Health:
 			g.decks[input.pid].Clear()
 			g.decks[input.pid].InsertCardWithPriority(infoCard{"Basically everyone in your state is dead. you've been removed from office."}, maxCardPriority)
-			d, err := loadDeck()
-			if err != nil {
-				log.Fatal(err)
-			}
-			for !d.IsEmpty() {
-				g.decks[input.pid].InsertCard(d.PopTopCard())
-			}
+			g.decks[input.pid] = g.buildBaseDeck()
 			g.stats[input.pid] = newStats()
 		case s.Stability <= minStatValue || maxStatValue <= s.Stability:
 			g.decks[input.pid].Clear()
 			g.decks[input.pid].InsertCardWithPriority(infoCard{"People hate living here so they've staged a coup and removed you from office."}, maxCardPriority)
-			d, err := loadDeck()
-			if err != nil {
-				log.Fatal(err)
-			}
-			for !d.IsEmpty() {
-				g.decks[input.pid].InsertCard(d.PopTopCard())
-			}
+			g.decks[input.pid] = g.buildBaseDeck()
 			g.stats[input.pid] = newStats()
 		}
 		g.decks[input.pid].RemoveCard(input.card)
@@ -222,45 +208,12 @@ func (g *Game) annouce(message string) {
 	}
 }
 
-func (g *Game) sendTopCard(pid uuid.UUID) {
-	c := g.decks[pid].TopCard()
-	s := g.stats[pid]
-
-	if c == theVotingCard {
-		g.jobs[pid] <- func(n *Client) {
-			n.showCard(theVotingCard, s)
-			g.inputs <- message{
-				pid:  n.pid,
-				card: theVotingCard,
-			}
-		}
-		return
-	}
-
-	g.jobs[pid] <- func(cli *Client) {
-		if g.decks[cli.pid].IsEmpty() {
-			cli.showCard(infoCard{"no more cards for you!"}, s)
-			return
-		}
-		c := g.decks[cli.pid].TopCard()
-		cli.showCard(c, s)
-
-		input, err := cli.getInput()
-		if websocket.IsCloseError(err, websocket.CloseAbnormalClosure, websocket.CloseGoingAway, websocket.CloseInternalServerErr) {
-			g.disconnect(pid)
-			return
-		}
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		g.inputs <- message{
-			pid:   cli.pid,
-			card:  c,
-			input: input,
-		}
-	}
+func (g *Game) buildBaseDeck() *Deck {
+	cards := make([]Card, len(g.baseCards))
+	copy(cards, g.baseCards)
+	deck := NewDeck(cards)
+	deck.ShuffleActionCards()
+	return deck
 }
 
 func (g *Game) computeElectionWinner() uuid.UUID {
@@ -299,9 +252,11 @@ func (g *Game) computeElectionWinner() uuid.UUID {
 	return ties[rand.Intn(len(ties))]
 }
 
-func (g *Game) waitForVotes() {
+func (g *Game) debugDumpDecks() {
 	for _, pid := range g.pids {
-		g.decks[pid].InsertCard(theVotingCard)
+		log.Printf("==== DECK %v ====\n", pid)
+		g.decks[pid].DebugDump(os.Stderr)
+		log.Printf("==== END DECK %v ====\n\n", pid)
 	}
 }
 
@@ -314,10 +269,49 @@ func (g *Game) isOver() bool {
 	return len(g.clients) > 0
 }
 
-func (g *Game) debugDumpDecks() {
+func (g *Game) sendTopCard(pid uuid.UUID) {
+	if g.decks[pid].IsEmpty() {
+		g.decks[pid] = g.buildBaseDeck()
+	}
+
+	c := g.decks[pid].TopCard()
+	s := g.stats[pid]
+
+	if c == theVotingCard {
+		g.jobs[pid] <- func(n *Client) {
+			n.showCard(theVotingCard, s)
+			g.inputs <- message{
+				pid:  n.pid,
+				card: c,
+			}
+		}
+		return
+	}
+
+	g.jobs[pid] <- func(cli *Client) {
+		c := g.decks[cli.pid].TopCard()
+		cli.showCard(c, s)
+
+		input, err := cli.getInput()
+		if websocket.IsCloseError(err, websocket.CloseAbnormalClosure, websocket.CloseGoingAway, websocket.CloseInternalServerErr) {
+			g.disconnect(pid)
+			return
+		}
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		g.inputs <- message{
+			pid:   cli.pid,
+			card:  c,
+			input: input,
+		}
+	}
+}
+
+func (g *Game) waitForVotes() {
 	for _, pid := range g.pids {
-		log.Printf("==== DECK %v ====\n", pid)
-		g.decks[pid].DebugDump(os.Stderr)
-		log.Printf("==== END DECK %v ====\n\n", pid)
+		g.decks[pid].InsertCard(theVotingCard)
 	}
 }

@@ -13,7 +13,7 @@
 * [DONE] Auto-generate and re-assign leader names on state failure.
 * [DONE] Randomly generate and order card decks (shuffle)
 * Support joining game lobbies.
-* Regenerate the deck once it is empty.
+* [DONE] Regenerate the deck once it is empty.
 * [DONE] Render the card according to the mockup I drew.
 * Create a "game over" screen. (player has run out of content).
 * Return to the main menu when the game is over.

@@ -1,6 +1,13 @@
 package couchcampaign
 
-import "log"
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+)
 
 // Cards are stored in a google spreadsheet and exported in TSV format.
 // these constants are the array indices of the card fields in the TSV file.
@@ -93,4 +100,92 @@ type votingCard string
 
 func (c votingCard) toProto() *VotingCard {
 	return &VotingCard{Text: string(c)}
+}
+
+func loadBaseCards() ([]Card, error) {
+	res, err := http.Get(deckURL)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var cards []Card
+	// Parse the deck. It's stored in tab-separated-values (TVS) format. Each
+	// card is on a new line.
+	tsvLines := strings.SplitN(string(body), "\n", deckMaxSize)
+	for _, line := range tsvLines {
+		cardFields := strings.SplitN(line, "\t", cardFieldCount)
+		c, err := parseCardTSV(cardFields)
+		if err != nil {
+			return nil, fmt.Errorf("invalid card: %w", err)
+		}
+		cards = append(cards, c)
+	}
+
+	return cards, nil
+}
+
+func parseCardTSV(fields []string) (Card, error) {
+	parseInt := func(input string) (int, error) {
+		id, err := strconv.ParseInt(input, 10, 64)
+		if err != nil {
+			return -1, err
+		}
+		return int(id), nil
+	}
+
+	var c Card
+
+	for i := range fields {
+		fields[i] = strings.TrimSpace(fields[i])
+	}
+
+	id, err := parseInt(fields[cardID])
+	if err != nil {
+		return c, fmt.Errorf("invalid id: %w", err)
+	}
+
+	awe, err := parseInt(fields[cardAWE])
+	if err != nil {
+		return c, fmt.Errorf("invalid ams: %w", err)
+	}
+	ahe, err := parseInt(fields[cardAHE])
+	if err != nil {
+		return c, fmt.Errorf("invalid aps: %w", err)
+	}
+	ase, err := parseInt(fields[cardASE])
+	if err != nil {
+		return c, fmt.Errorf("invalid ajs: %w", err)
+	}
+
+	rwe, err := parseInt(fields[cardRWE])
+	if err != nil {
+		return c, fmt.Errorf("invalid rms: %w", err)
+	}
+	rhe, err := parseInt(fields[cardRHE])
+	if err != nil {
+		return c, fmt.Errorf("invalid rps: %w", err)
+	}
+	rse, err := parseInt(fields[cardRSE])
+	if err != nil {
+		return c, fmt.Errorf("invalid rjs: %w", err)
+	}
+
+	return actionCard{
+		ID:                 id,
+		Advisor:            fields[cardAdvisor],
+		Content:            fields[cardContent],
+		AcceptText:         fields[cardAcceptText],
+		AccWealthEffect:    awe,
+		AccHealthEffect:    ahe,
+		AccStabilityEffect: ase,
+		RejectText:         fields[cardRejectText],
+		RejWealthEffect:    rwe,
+		RejHealthEffect:    rhe,
+		RejStabilityEffect: rse,
+	}, nil
 }
