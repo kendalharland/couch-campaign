@@ -36,8 +36,7 @@ class CouchCampaignState extends State<CouchCampaign> {
   @override
   Widget build(BuildContext context) {
     if (_screen == null) {
-      final client = http.Client();
-      final rpcClient = RpcClient(client, widget.address);
+      final rpcClient = RpcClient(http.Client(), widget.address);
       final lmc = LobbyManagerClient(rpcClient);
       _screen = MainMenuScreen(lmc, onGameCreated: _setScreen);
     }
