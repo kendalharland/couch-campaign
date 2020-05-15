@@ -2,133 +2,115 @@ package couchcampaign
 
 import (
 	"container/heap"
-	"fmt"
-	"io"
 	"log"
-	"math/rand"
+	"math"
 )
 
-var _ heap.Interface = &cardHeap{}
+// CardRef is a reference to a card.
+type CardRef = string
 
+// CardPriority determines how soon a card is popped from a Deck.
+//
+// The lower the value the higher the priority.
+type CardPriority = int64
+
+// Card priority constants.
 const (
-	deckURL     = "https://gist.githubusercontent.com/kendalharland/71a3b843f740099706b148e62a2dd8eb/raw/couch-campaign-cards"
-	deckMaxSize = 1000
+	MaxCardPriority CardPriority = math.MinInt64
+	MinCardPriority CardPriority = math.MaxInt64
 )
 
-// Deck ...
+// Deck implements a min-heap of Card references.
+//
+// This is used to order the cards that are presented to the player. Each card
+// is pushed onto the deck with an integer priority. Cards with equal priority
+// are ordered based on their insertion time. Cards that have been in the deck
+// longer than others with the same priority are popped first.
 type Deck struct {
-	h *cardHeap
+	h *cardMinHeap
 }
 
-// NewDeck ...
-func NewDeck(cards []Card) *Deck {
-	return &Deck{
-		h: newCardHeap(cards),
-	}
+func newDeck() *Deck {
+	return &Deck{h: newCardHeap()}
 }
 
-// Clear ...
+// Clear empties the deck.
 func (d *Deck) Clear() {
-	d.h = newCardHeap([]Card{})
+	d.h.nodes = []*CardNode{}
 }
 
-// IsEmpty ...
+// IsEmpty returns true if the deck has no cards.
 func (d *Deck) IsEmpty() bool {
 	return d.h.Len() == 0
 }
 
-// InsertCard ...
-func (d *Deck) InsertCard(c Card) {
-	heap.Push(d.h, &cardHeapNode{card: c, priority: cardPriorityByType(c)})
+// Insert adds a card to the deck.
+func (d *Deck) Insert(n CardNode) {
+	heap.Push(d.h, &n)
 	heap.Init(d.h)
 }
 
-// InsertCardWithPriority ...
-func (d *Deck) InsertCardWithPriority(c Card, priority int) {
-	heap.Push(d.h, &cardHeapNode{card: c, priority: priority})
-	heap.Init(d.h)
-}
-
-// RemoveCard ...
-func (d *Deck) RemoveCard(c Card) {
+// Remove removes a card from the deck.
+func (d *Deck) Remove(c CardRef) CardRef {
 	pos := -1
 	for i, n := range d.h.nodes {
-		if n.card == c {
+		if n.Card == c {
 			pos = i
 			break
 		}
 	}
 	if pos >= 0 {
-		heap.Remove(d.h, pos)
+		node := heap.Remove(d.h, pos).(*CardNode)
+		return node.Card
 	}
+	return ""
 }
 
-// TopCard ...
-func (d *Deck) TopCard() Card {
+// Top returns the top card from the deck.
+func (d *Deck) Top() CardRef {
 	if d.h.Len() > 0 {
-		return d.h.Top().card
+		return d.h.Top().Card
 	}
-	return nil
+	return ""
 }
 
-// PopTopCard ...
-func (d *Deck) PopTopCard() Card {
-	return heap.Pop(d.h).(*cardHeapNode).card
+// Pop removes and returns the top card from the deck.
+func (d *Deck) Pop() CardRef {
+	return heap.Pop(d.h).(*CardNode).Card
 }
 
-// ShuffleActionCards ...
-func (d *Deck) ShuffleActionCards() {
-	for _, n := range d.h.nodes {
-		if _, ok := n.card.(ActionCard); !ok {
-			continue
-		}
-		n.priority = rand.Intn(actionCardPriority + 1)
-		n.insertionTime = d.h.lastInsertionTime
-	}
-	heap.Init(d.h)
-}
-
-// DebugDump ...
-func (d *Deck) DebugDump(w io.Writer) {
-	d.h.debugDump(w)
-}
-
-type cardHeap struct {
-	nodes             []*cardHeapNode
-	lastInsertionTime int
-}
-
-type cardHeapNode struct {
-	card          Card
-	priority      int
+// CardNode represents a Card stored in a Deck.
+type CardNode struct {
+	Card          CardRef
+	Priority      int64
 	insertionTime int
 }
 
-func newCardHeap(cards []Card) *cardHeap {
-	d := &cardHeap{}
-	for _, card := range cards {
-		d.nodes = append(d.nodes, &cardHeapNode{
-			card:          card,
-			priority:      cardPriorityByType(card),
-			insertionTime: d.lastInsertionTime,
-		})
-	}
-	d.lastInsertionTime++
-	return d
+var _ heap.Interface = &cardMinHeap{}
+
+type cardMinHeap struct {
+	nodes             []*CardNode
+	lastInsertionTime int
 }
 
-func (h *cardHeap) Init() {
+func newCardHeap() *cardMinHeap {
+	return &cardMinHeap{
+		nodes: []*CardNode{},
+	}
+}
+
+func (h *cardMinHeap) Init() {
 	heap.Init(h)
 }
 
-func (h *cardHeap) Push(x interface{}) {
-	n := x.(*cardHeapNode)
+func (h *cardMinHeap) Push(x interface{}) {
+	n := x.(*CardNode)
 	n.insertionTime = h.lastInsertionTime
 	h.lastInsertionTime++
 	h.nodes = append(h.nodes, n)
 }
 
-func (h *cardHeap) Pop() interface{} {
+func (h *cardMinHeap) Pop() interface{} {
 	old := h.nodes
 	n := len(old)
 	item := old[n-1]
@@ -136,50 +118,23 @@ func (h *cardHeap) Pop() interface{} {
 	return item
 }
 
-func (h *cardHeap) Len() int {
+func (h *cardMinHeap) Len() int {
 	return len(h.nodes)
 }
 
-func (h *cardHeap) Less(i, j int) bool {
+func (h *cardMinHeap) Less(i, j int) bool {
 	ni, nj := h.nodes[i], h.nodes[j]
-	return ni.priority < nj.priority ||
-		ni.priority == nj.priority && ni.insertionTime < nj.insertionTime
+	return ni.Priority < nj.Priority ||
+		ni.Priority == nj.Priority && ni.insertionTime < nj.insertionTime
 }
 
-func (h *cardHeap) Swap(i, j int) {
+func (h *cardMinHeap) Swap(i, j int) {
 	h.nodes[i], h.nodes[j] = h.nodes[j], h.nodes[i]
 }
 
-func (h *cardHeap) Top() *cardHeapNode {
+func (h *cardMinHeap) Top() *CardNode {
 	if h.Len() == 0 {
 		log.Fatal("deck is empty")
 	}
 	return h.nodes[0]
-}
-
-func (h *cardHeap) debugDump(w io.Writer) {
-	for _, c := range h.nodes {
-		fmt.Fprintf(w, "%+v\n", c)
-	}
-}
-
-// Card priority.
-//
-// The lower the value the higher the priority.
-const (
-	maxCardPriority = iota
-	infoCardPriority
-	actionCardPriority
-	minCardPriority
-)
-
-func cardPriorityByType(c Card) int {
-	switch c.(type) {
-	case actionCard:
-		return actionCardPriority
-	case infoCard, votingCard:
-		return infoCardPriority
-	default:
-		return minCardPriority
-	}
 }

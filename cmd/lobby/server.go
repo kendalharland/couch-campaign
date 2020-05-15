@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,10 +16,9 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 
 	"github.com/gorilla/mux"
-)
 
-// TODO: Can LobbyServer be functions instead of struct?
-// TODO: Include healthcheck URL for games so that LobbyServer can clean up if the process dies.
+	pb "couchcampaign/proto"
+)
 
 // LobbyServer handles HTTP requests for game games.
 type LobbyServer struct {
@@ -51,7 +52,7 @@ func (s *LobbyServer) index(w http.ResponseWriter, r *http.Request) {
 func (s *LobbyServer) createGame(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	req := &couchcampaign.CreateGameRequest{}
+	req := &pb.CreateGameRequest{}
 	if err := jsonpb.Unmarshal(r.Body, req); err != nil {
 		couchcampaign.RespondWithError(w, err)
 		return
@@ -71,7 +72,7 @@ func (s *LobbyServer) createGame(w http.ResponseWriter, r *http.Request) {
 func (s *LobbyServer) joinGame(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	req := &couchcampaign.JoinGameRequest{}
+	req := &pb.JoinGameRequest{}
 	if err := jsonpb.Unmarshal(r.Body, req); err != nil {
 		couchcampaign.RespondWithError(w, err)
 		return
@@ -91,7 +92,7 @@ func (s *LobbyServer) joinGame(w http.ResponseWriter, r *http.Request) {
 func (s *LobbyServer) listGames(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	req := &couchcampaign.ListGamesRequest{}
+	req := &pb.ListGamesRequest{}
 	if err := jsonpb.Unmarshal(r.Body, req); err != nil {
 		couchcampaign.RespondWithError(w, err)
 		return
@@ -120,10 +121,10 @@ type Game struct {
 }
 
 // CreateGame creates a new lobby on this server.
-func (s *LobbyServerImpl) CreateGame(ctx context.Context, m *couchcampaign.CreateGameRequest) (*couchcampaign.CreateGameResponse, error) {
-	id := couchcampaign.NewPID()
+func (s *LobbyServerImpl) CreateGame(ctx context.Context, m *pb.CreateGameRequest) (*pb.CreateGameResponse, error) {
 	port := s.minPort
 	for _, lobby := range s.games {
+		log.Println(lobby.Port)
 		if lobby.Port == port {
 			port++
 		}
@@ -132,33 +133,38 @@ func (s *LobbyServerImpl) CreateGame(ctx context.Context, m *couchcampaign.Creat
 		return nil, errors.New("no ports available")
 	}
 
+	id := fmt.Sprintf("%d", rand.Intn(999999))
 	s.games = append(s.games, &Game{
-		ID:   id.String(),
+		ID:   id,
 		Port: port,
 	})
 
-	cmd := exec.Command("couchcampaign", fmt.Sprintf("-port=%d", port))
-	cmd.Env = os.Environ()
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// Set the Cmd explicitly because exec.Command() cannot find binaries
+	// with a suffix on windows.
+	cmd := exec.Cmd{
+		Path:   "couchcampaign",
+		Args:   []string{"couchcampaign", "-port", fmt.Sprintf("%d", port)},
+		Env:    os.Environ(),
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
+	log.Println(cmd.String())
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
 
-	// TODO: Find a way to pass the original URL to this method instead of
-	// hardcoding 'localhost'.
 	gameURL := url.URL{
 		Scheme: "http",
 		Host:   fmt.Sprintf("localhost:%d", port),
 	}
-	return &couchcampaign.CreateGameResponse{GameUrl: gameURL.String()}, nil
+	return &pb.CreateGameResponse{GameUrl: gameURL.String()}, nil
 }
 
 // ListGames returns the games on this server.
-func (s *LobbyServerImpl) ListGames(ctx context.Context, m *couchcampaign.ListGamesRequest) (*couchcampaign.ListGamesResponse, error) {
-	res := &couchcampaign.ListGamesResponse{}
+func (s *LobbyServerImpl) ListGames(ctx context.Context, m *pb.ListGamesRequest) (*pb.ListGamesResponse, error) {
+	res := &pb.ListGamesResponse{}
 	for _, game := range s.games {
-		res.Games = append(res.Games, &couchcampaign.GameInfo{
+		res.Games = append(res.Games, &pb.GameInfo{
 			Id: game.ID,
 		})
 	}
@@ -166,7 +172,7 @@ func (s *LobbyServerImpl) ListGames(ctx context.Context, m *couchcampaign.ListGa
 }
 
 // JoinGame adds a player to a lobby.
-func (s *LobbyServerImpl) JoinGame(ctx context.Context, m *couchcampaign.JoinGameRequest) (*couchcampaign.JoinGameResponse, error) {
+func (s *LobbyServerImpl) JoinGame(ctx context.Context, m *pb.JoinGameRequest) (*pb.JoinGameResponse, error) {
 	if m.GameId == "" {
 		return nil, couchcampaign.Errorf(http.StatusBadRequest, "A lobby ID is required")
 	}
@@ -182,7 +188,7 @@ func (s *LobbyServerImpl) JoinGame(ctx context.Context, m *couchcampaign.JoinGam
 		return nil, couchcampaign.Errorf(http.StatusNotFound, "Game %q not found", m.GameId)
 	}
 	l := s.games[lpos]
-	return &couchcampaign.JoinGameResponse{
+	return &pb.JoinGameResponse{
 		GameUrl: fmt.Sprintf("ws://localhost:%d", l.Port),
 	}, nil
 }

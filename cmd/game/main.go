@@ -18,12 +18,12 @@ import (
 var port = 8081
 
 func init() {
-	flag.IntVar(&port, "port", port, "The port to use for the server")
+	flag.IntVar(&port, "port", -1, "The port to use for the server")
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
 	flag.Parse()
+	rand.Seed(time.Now().UnixNano())
 	os.Exit(execute(context.Background()))
 }
 
@@ -40,6 +40,8 @@ func execute(ctx context.Context) int {
 }
 
 func checkFlags() error {
+	log.Printf("Got port %v", port)
+
 	if port <= 0 {
 		return fmt.Errorf("-port must be positive")
 	}
