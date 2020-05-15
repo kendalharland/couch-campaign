@@ -15,7 +15,7 @@
 * Support joining game lobbies.
 * [DONE] Regenerate the deck once it is empty.
 * [DONE] Render the card according to the mockup I drew.
-* Create a "game over" screen. (player has run out of content).
+* Create screen for player death.
 * Return to the main menu when the game is over.
 * Show a disconnect message and return to main menu when socket is closed.
 * Display time-in-office in footer.

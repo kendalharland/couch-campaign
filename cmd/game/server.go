@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/gofrs/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
@@ -22,12 +21,12 @@ func init() {
 
 type GameServer struct {
 	game  *couchcampaign.Game
-	conns map[uuid.UUID]*websocket.Conn
+	conns map[couchcampaign.PID]*websocket.Conn
 }
 
 func NewGameServer() *GameServer {
 	return &GameServer{
-		conns: make(map[uuid.UUID]*websocket.Conn),
+		conns: make(map[couchcampaign.PID]*websocket.Conn),
 	}
 }
 
@@ -50,7 +49,7 @@ func (s *GameServer) start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clients := make(map[uuid.UUID]*couchcampaign.Client)
+	clients := make(map[couchcampaign.PID]*couchcampaign.Client)
 	for pid := range s.conns {
 		clients[pid] = couchcampaign.NewClientFromWebSocket(pid, s.conns[pid])
 	}
@@ -85,12 +84,7 @@ func (s *GameServer) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate an ID for the player.
-	id, err := uuid.NewV4()
-	if err != nil {
-		couchcampaign.RespondWithError(w, err)
-		return
-	}
+	id := couchcampaign.NewPID()
 
 	// Upgrade to a websocket connection.
 	conn, err := upgrader.Upgrade(w, r, nil)

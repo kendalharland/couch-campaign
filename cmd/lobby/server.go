@@ -13,7 +13,6 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 
-	"github.com/gofrs/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -122,11 +121,7 @@ type Game struct {
 
 // CreateGame creates a new lobby on this server.
 func (s *LobbyServerImpl) CreateGame(ctx context.Context, m *couchcampaign.CreateGameRequest) (*couchcampaign.CreateGameResponse, error) {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
-
+	id := couchcampaign.NewPID()
 	port := s.minPort
 	for _, lobby := range s.games {
 		if lobby.Port == port {

@@ -2,23 +2,15 @@ package couchcampaign
 
 import (
 	"testing"
-
-	"github.com/gobuffalo/uuid"
 )
 
 func TestElectionTracker(t *testing.T) {
-	p1, err := uuid.NewV4()
-	if err != nil {
-		t.Fatalf("failed to create uuid: %v", err)
-	}
-	p2, err := uuid.NewV4()
-	if err != nil {
-		t.Fatalf("failed to create uuid: %v", err)
-	}
+	p1 := NewPID()
+	p2 := NewPID()
 
 	t.Run("2p", func(t *testing.T) {
 		type testStep struct {
-			pid        uuid.UUID
+			pid        PID
 			card       Card
 			wantSeason electionSeason
 		}
@@ -74,7 +66,7 @@ func TestElectionTracker(t *testing.T) {
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				e := newElectionStateMachine(tt.offSeasonLen, []uuid.UUID{p1, p2})
+				e := newElectionStateMachine(tt.offSeasonLen, []PID{p1, p2})
 				for i, step := range tt.steps {
 					input := message{
 						pid:   step.pid,

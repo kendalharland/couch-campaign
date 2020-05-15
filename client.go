@@ -3,21 +3,20 @@ package couchcampaign
 import (
 	"log"
 
-	"github.com/gobuffalo/uuid"
 	"github.com/gorilla/websocket"
 )
 
 type Client struct {
-	pid  uuid.UUID
+	pid  PID
 	conn *connection
 }
 
-func NewClientFromWebSocket(pid uuid.UUID, c *websocket.Conn) *Client {
+func NewClientFromWebSocket(pid PID, c *websocket.Conn) *Client {
 	conn := newConnection(c)
 	return newClient(conn, pid)
 }
 
-func newClient(c *connection, pid uuid.UUID) *Client {
+func newClient(c *connection, pid PID) *Client {
 	return &Client{
 		conn: c,
 		pid:  pid,

@@ -1,9 +1,5 @@
 package couchcampaign
 
-import (
-	"github.com/gobuffalo/uuid"
-)
-
 type electionSeason int
 
 const (
@@ -26,13 +22,13 @@ func (s electionSeason) String() string {
 
 type electionStateMachine struct {
 	currentSeason electionSeason
-	pids          []uuid.UUID
+	pids          []PID
 	numCardsUntil int
-	numCardsSince map[uuid.UUID]int
-	isVoting      map[uuid.UUID]bool
+	numCardsSince map[PID]int
+	isVoting      map[PID]bool
 }
 
-func newElectionStateMachine(offSeasonLength int, pids []uuid.UUID) *electionStateMachine {
+func newElectionStateMachine(offSeasonLength int, pids []PID) *electionStateMachine {
 	e := &electionStateMachine{
 		pids:          pids,
 		numCardsUntil: offSeasonLength,
@@ -45,7 +41,7 @@ func (e *electionStateMachine) CurrentSeason() electionSeason {
 	return e.currentSeason
 }
 
-func (e *electionStateMachine) HandleCardPlayed(pid uuid.UUID, card Card) electionSeason {
+func (e *electionStateMachine) HandleCardPlayed(pid PID, card Card) electionSeason {
 	t := cardTypeOf(card)
 
 	switch e.currentSeason {
@@ -99,8 +95,8 @@ func (e *electionStateMachine) HandleCardPlayed(pid uuid.UUID, card Card) electi
 
 func (e *electionStateMachine) reset() {
 	e.currentSeason = offSeason
-	e.numCardsSince = make(map[uuid.UUID]int)
-	e.isVoting = make(map[uuid.UUID]bool)
+	e.numCardsSince = make(map[PID]int)
+	e.isVoting = make(map[PID]bool)
 	for _, pid := range e.pids {
 		e.numCardsSince[pid] = 0
 		e.isVoting[pid] = false

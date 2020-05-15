@@ -1,10 +1,28 @@
 package couchcampaign
 
 import (
+	"log"
 	"math/rand"
 
+	"github.com/gobuffalo/uuid"
 	"github.com/gonum/stat"
 )
+
+// PID is a type alias for a player ID.
+type PID uuid.UUID
+
+// NewPID generates a unique PID.
+func NewPID() PID {
+	id, err := uuid.NewV4()
+	if err != nil {
+		log.Fatalf("newPID: %v", err)
+	}
+	return PID(id)
+}
+
+func (p PID) String() string {
+	return uuid.UUID(p).String()
+}
 
 // Leader names
 var leaders = []string{

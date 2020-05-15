@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"os"
 
-	"github.com/gobuffalo/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -35,25 +34,25 @@ var welcomeMessage = `
 `
 
 type message struct {
-	pid   uuid.UUID
+	pid   PID
 	card  Card
 	input string
 }
 
 type Game struct {
 	election *electionStateMachine
-	pids     []uuid.UUID
-	clients  map[uuid.UUID]*Client
-	jobs     map[uuid.UUID]chan func(*Client)
-	stats    map[uuid.UUID]*stats
-	decks    map[uuid.UUID]*Deck
+	pids     []PID
+	clients  map[PID]*Client
+	jobs     map[PID]chan func(*Client)
+	stats    map[PID]*stats
+	decks    map[PID]*Deck
 	inputs   chan message
 
 	baseCards []Card
 }
 
-func NewGame(clients map[uuid.UUID]*Client) (*Game, error) {
-	pids := make([]uuid.UUID, 0, len(clients))
+func NewGame(clients map[PID]*Client) (*Game, error) {
+	pids := make([]PID, 0, len(clients))
 	for pid := range clients {
 		pids = append(pids, pid)
 	}
@@ -68,9 +67,9 @@ func NewGame(clients map[uuid.UUID]*Client) (*Game, error) {
 		election:  newElectionStateMachine(numCardsBetweenElections, pids),
 		pids:      pids,
 		clients:   clients,
-		decks:     make(map[uuid.UUID]*Deck),
-		jobs:      make(map[uuid.UUID]chan func(*Client)),
-		stats:     make(map[uuid.UUID]*stats),
+		decks:     make(map[PID]*Deck),
+		jobs:      make(map[PID]chan func(*Client)),
+		stats:     make(map[PID]*stats),
 		inputs:    make(chan message, len(clients)),
 		baseCards: baseCards,
 	}
@@ -107,7 +106,7 @@ func (g *Game) Run(_ context.Context) {
 	log.Println("Game over")
 }
 
-func (g *Game) disconnect(pid uuid.UUID) {
+func (g *Game) disconnect(pid PID) {
 	log.Printf("Client close: %v", g.clients[pid].Close())
 	delete(g.clients, pid)
 	delete(g.jobs, pid)
@@ -216,10 +215,10 @@ func (g *Game) buildBaseDeck() *Deck {
 	return deck
 }
 
-func (g *Game) computeElectionWinner() uuid.UUID {
+func (g *Game) computeElectionWinner() PID {
 	// Whoever has the highest average score wins.
 	highscore := math.MinInt64
-	scores := make(map[int][]uuid.UUID)
+	scores := make(map[int][]PID)
 	for _, pid := range g.pids {
 		score := g.stats[pid].Sum()
 		scores[score] = append(scores[score], pid)
@@ -234,7 +233,7 @@ func (g *Game) computeElectionWinner() uuid.UUID {
 
 	// If there's a tie, whoever tied and has the most balanced stats wins.
 	minVariance := math.MaxFloat64
-	variances := make(map[float64][]uuid.UUID)
+	variances := make(map[float64][]PID)
 	for _, pid := range scores[highscore] {
 		variance := g.stats[pid].Variance()
 		variances[variance] = append(variances[variance], pid)
@@ -269,7 +268,7 @@ func (g *Game) isOver() bool {
 	return len(g.clients) > 0
 }
 
-func (g *Game) sendTopCard(pid uuid.UUID) {
+func (g *Game) sendTopCard(pid PID) {
 	if g.decks[pid].IsEmpty() {
 		g.decks[pid] = g.buildBaseDeck()
 	}
