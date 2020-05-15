@@ -74,14 +74,14 @@ func TestElectionTracker(t *testing.T) {
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				e := newElectionTracker(tt.offSeasonLen, []uuid.UUID{p1, p2})
+				e := newElectionStateMachine(tt.offSeasonLen, []uuid.UUID{p1, p2})
 				for i, step := range tt.steps {
 					input := message{
 						pid:   step.pid,
 						card:  step.card,
 						input: "",
 					}
-					got := e.Update(input)
+					got := e.HandleCardPlayed(input.pid, input.card)
 					if got != step.wantSeason {
 						t.Fatalf("step %d: Update(%+v) got season %s but wanted %s", i, input, got, step.wantSeason)
 					}

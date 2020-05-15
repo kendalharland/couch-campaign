@@ -41,7 +41,7 @@ type message struct {
 }
 
 type Game struct {
-	election *electionTracker
+	election *electionStateMachine
 	pids     []uuid.UUID
 	clients  map[uuid.UUID]*Client
 	jobs     map[uuid.UUID]chan func(*Client)
@@ -57,23 +57,23 @@ func NewGame(clients map[uuid.UUID]*Client) (*Game, error) {
 	}
 
 	g := &Game{
-		election: newElectionTracker(numCardsBetweenElections, pids),
+		election: newElectionStateMachine(numCardsBetweenElections, pids),
 		pids:     pids,
 		clients:  clients,
 		decks:    make(map[uuid.UUID]*Deck),
 		jobs:     make(map[uuid.UUID]chan func(*Client)),
 		stats:    make(map[uuid.UUID]*stats),
-		inputs:   make(chan message, 10),
+		inputs:   make(chan message, len(clients)),
 	}
 
 	for _, pid := range pids {
 		d, err := loadDeck()
 		if err != nil {
-			return nil, fmt.Errorf("loadDeck: %v", err)
+			return nil, fmt.Errorf("loadDeck: %w", err)
 		}
 
 		g.decks[pid] = d
-		g.jobs[pid] = make(chan func(*Client), 10)
+		g.jobs[pid] = make(chan func(*Client), 2)
 		g.stats[pid] = newStats()
 	}
 
@@ -178,7 +178,7 @@ func (g *Game) handleInput(input message) {
 
 func (g *Game) updateElectionState(input message) {
 	oldSeason := g.election.CurrentSeason()
-	newSeason := g.election.Update(input)
+	newSeason := g.election.HandleCardPlayed(input.pid, input.card)
 	if oldSeason == newSeason {
 		return
 	}

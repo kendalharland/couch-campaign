@@ -1,5 +1,7 @@
 package couchcampaign
 
+import "log"
+
 // Cards are stored in a google spreadsheet and exported in TSV format.
 // these constants are the array indices of the card fields in the TSV file.
 const (
@@ -17,6 +19,28 @@ const (
 
 	cardFieldCount
 )
+
+type cardType int
+
+const (
+	actionCardType cardType = iota
+	infoCardType
+	votingCardType
+)
+
+func cardTypeOf(c Card) cardType {
+	switch t := c.(type) {
+	case actionCard:
+		return actionCardType
+	case infoCard:
+		return infoCardType
+	case votingCard:
+		return votingCardType
+	default:
+		log.Fatalf("cardTypeOf: unknown card type %v: %v", t, c)
+		return -1 // satisfies the analyzer.
+	}
+}
 
 type Card interface{}
 

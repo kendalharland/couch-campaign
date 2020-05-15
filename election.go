@@ -24,17 +24,16 @@ func (s electionSeason) String() string {
 	return ""
 }
 
-type electionTracker struct {
+type electionStateMachine struct {
+	currentSeason electionSeason
 	pids          []uuid.UUID
 	numCardsUntil int
-
-	currentSeason electionSeason
 	numCardsSince map[uuid.UUID]int
 	isVoting      map[uuid.UUID]bool
 }
 
-func newElectionTracker(offSeasonLength int, pids []uuid.UUID) *electionTracker {
-	e := &electionTracker{
+func newElectionStateMachine(offSeasonLength int, pids []uuid.UUID) *electionStateMachine {
+	e := &electionStateMachine{
 		pids:          pids,
 		numCardsUntil: offSeasonLength,
 	}
@@ -42,18 +41,19 @@ func newElectionTracker(offSeasonLength int, pids []uuid.UUID) *electionTracker 
 	return e
 }
 
-func (e *electionTracker) CurrentSeason() electionSeason {
+func (e *electionStateMachine) CurrentSeason() electionSeason {
 	return e.currentSeason
 }
 
-func (e *electionTracker) Update(input message) electionSeason {
-	pid := input.pid
+func (e *electionStateMachine) HandleCardPlayed(pid uuid.UUID, card Card) electionSeason {
+	t := cardTypeOf(card)
+
 	switch e.currentSeason {
 	case offSeason:
 		// The off season ends as soon as at least one player activates
 		// numCardsUntil action cards, which signifies the start of campaign
 		// season.
-		if _, ok := input.card.(actionCard); !ok {
+		if t != actionCardType {
 			break
 		}
 		e.numCardsSince[pid]++
@@ -64,7 +64,7 @@ func (e *electionTracker) Update(input message) electionSeason {
 		// Campaign season ends as soon as the last player to activate
 		// numCardsUntil action cards does so, which signifies the start of
 		// voting season.
-		if _, ok := input.card.(actionCard); !ok {
+		if t != actionCardType {
 			break
 		}
 		e.numCardsSince[pid]++
@@ -78,7 +78,7 @@ func (e *electionTracker) Update(input message) electionSeason {
 		// Some players may still be looking at the card they drew right before
 		// voting season, so the season ends as soon as all players are waiting
 		// for votes to be counted.
-		if _, ok := input.card.(votingCard); !ok {
+		if t != votingCardType {
 			break
 		}
 		e.isVoting[pid] = true
@@ -97,7 +97,7 @@ func (e *electionTracker) Update(input message) electionSeason {
 	return e.currentSeason
 }
 
-func (e *electionTracker) reset() {
+func (e *electionStateMachine) reset() {
 	e.currentSeason = offSeason
 	e.numCardsSince = make(map[uuid.UUID]int)
 	e.isVoting = make(map[uuid.UUID]bool)

@@ -38,10 +38,6 @@ func (cli *Client) getInput() (string, error) {
 	return string(message), nil
 }
 
-type lobby struct {
-	pids map[uuid.UUID]interface{}
-}
-
 func (cli *Client) showCard(c Card, s *stats) {
 	m, err := renderCard(c, s)
 	if err != nil {
