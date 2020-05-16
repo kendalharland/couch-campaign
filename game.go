@@ -7,8 +7,6 @@ import (
 	"math"
 	"math/rand"
 	"os"
-
-	"github.com/gorilla/websocket"
 )
 
 // Game options.
@@ -33,65 +31,62 @@ var welcomeMessage = `
 	Remember, the ultimate goal is to win the presidency.
 `
 
-type message struct {
-	pid   PID
-	card  Card
-	input string
-}
-
 type Game struct {
 	election *electionStateMachine
 	pids     []PID
-	clients  map[PID]*Client
-	jobs     map[PID]chan func(*Client)
+	clients  map[PID]*ClientDriver
+	jobs     map[PID]chan ClientJob
 	stats    map[PID]*stats
 	decks    map[PID]*Deck
-	inputs   chan message
+	inputs   chan ClientMessage
 
 	baseCards []Card
 }
 
-func NewGame(clients map[PID]*Client) (*Game, error) {
-	pids := make([]PID, 0, len(clients))
+func NewGame(clients map[PID]*ClientDriver) (*Game, error) {
+	g := &Game{
+		clients: clients,
+		pids:    make([]PID, 0, len(clients)),
+		decks:   make(map[PID]*Deck),
+		stats:   make(map[PID]*stats),
+		jobs:    make(map[PID]chan ClientJob),
+		inputs:  make(chan ClientMessage, len(clients)),
+	}
+
 	for pid := range clients {
-		pids = append(pids, pid)
+		g.pids = append(g.pids, pid)
 	}
 
 	baseCards, err := loadBaseCards()
 	if err != nil {
 		return nil, fmt.Errorf("loadBaseCards: %w", err)
 	}
-	log.Println(baseCards)
 
-	g := &Game{
-		election:  newElectionStateMachine(numCardsBetweenElections, pids),
-		pids:      pids,
-		clients:   clients,
-		decks:     make(map[PID]*Deck),
-		jobs:      make(map[PID]chan func(*Client)),
-		stats:     make(map[PID]*stats),
-		inputs:    make(chan message, len(clients)),
-		baseCards: baseCards,
-	}
+	g.election = newElectionStateMachine(numCardsBetweenElections, g.pids)
+	g.baseCards = baseCards
 
-	for _, pid := range pids {
+	for _, pid := range g.pids {
 		g.decks[pid] = g.buildBaseDeck()
-		g.jobs[pid] = make(chan func(*Client), 2)
+		g.jobs[pid] = make(chan ClientJob, 2)
 		g.stats[pid] = newStats()
+
+		// Insert the starting card for all players.
+		g.decks[pid].InsertCardWithPriority(infoCard{welcomeMessage}, maxCardPriority)
+
+		// Fan-in all client output streams.
+		g.clients[pid].setOutChan(g.inputs)
+
+		log.Printf("deck %v: %v", pid, g.decks[pid])
 	}
 
 	return g, nil
 }
 
 func (g *Game) Run(_ context.Context) {
+	// Spawn all clients.
 	for _, pid := range g.pids {
-		card := infoCard{welcomeMessage}
-		g.decks[pid].InsertCardWithPriority(card, maxCardPriority)
-	}
-
-	for _, client := range g.clients {
-		go client.run(g.jobs[client.pid])
-		g.sendTopCard(client.pid)
+		go g.clients[pid].Run(context.Background(), g.jobs[pid])
+		g.sendTopCard(pid)
 	}
 
 	for !g.isOver() {
@@ -107,7 +102,7 @@ func (g *Game) Run(_ context.Context) {
 }
 
 func (g *Game) disconnect(pid PID) {
-	log.Printf("Client close: %v", g.clients[pid].Close())
+	log.Printf("Client close: %v", g.clients[pid].close())
 	delete(g.clients, pid)
 	delete(g.jobs, pid)
 	delete(g.stats, pid)
@@ -118,11 +113,12 @@ func (g *Game) disconnect(pid PID) {
 	}
 }
 
-func (g *Game) handleInput(input message) {
+func (g *Game) handleInput(input ClientMessage) {
 	defer g.debugDumpDecks()
 
 	switch card := input.card.(type) {
 	case infoCard:
+		log.Printf("deck: %v, %+v", input.pid, g.decks[input.pid])
 		g.decks[input.pid].RemoveCard(input.card)
 		g.sendTopCard(input.pid)
 	case actionCard:
@@ -161,7 +157,7 @@ func (g *Game) handleInput(input message) {
 	}
 }
 
-func (g *Game) updateElectionState(input message) {
+func (g *Game) updateElectionState(input ClientMessage) {
 	oldSeason := g.election.CurrentSeason()
 	newSeason := g.election.HandleCardPlayed(input.pid, input.card)
 	if oldSeason == newSeason {
@@ -260,12 +256,7 @@ func (g *Game) debugDumpDecks() {
 }
 
 func (g *Game) isOver() bool {
-	for pid := range g.clients {
-		if !g.decks[pid].IsEmpty() {
-			return false
-		}
-	}
-	return len(g.clients) > 0
+	return len(g.clients) <= 0
 }
 
 func (g *Game) sendTopCard(pid PID) {
@@ -273,40 +264,11 @@ func (g *Game) sendTopCard(pid PID) {
 		g.decks[pid] = g.buildBaseDeck()
 	}
 
-	c := g.decks[pid].TopCard()
-	s := g.stats[pid]
-
-	if c == theVotingCard {
-		g.jobs[pid] <- func(n *Client) {
-			n.showCard(theVotingCard, s)
-			g.inputs <- message{
-				pid:  n.pid,
-				card: c,
-			}
-		}
-		return
+	g.jobs[pid] <- ClientJob{
+		Card:  g.decks[pid].TopCard(),
+		Stats: *(g.stats[pid]),
 	}
-
-	g.jobs[pid] <- func(cli *Client) {
-		c := g.decks[cli.pid].TopCard()
-		cli.showCard(c, s)
-
-		input, err := cli.getInput()
-		if websocket.IsCloseError(err, websocket.CloseAbnormalClosure, websocket.CloseGoingAway, websocket.CloseInternalServerErr) {
-			g.disconnect(pid)
-			return
-		}
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		g.inputs <- message{
-			pid:   cli.pid,
-			card:  c,
-			input: input,
-		}
-	}
+	log.Printf("Sent top card to %v", pid)
 }
 
 func (g *Game) waitForVotes() {

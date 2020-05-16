@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -22,6 +23,8 @@ func init() {
 type GameServer struct {
 	game  *couchcampaign.Game
 	conns map[couchcampaign.PID]*websocket.Conn
+
+	mu sync.Mutex
 }
 
 func NewGameServer() *GameServer {
@@ -37,6 +40,13 @@ func (s *GameServer) InstallHandlers(r *mux.Router) {
 	r.HandleFunc("/socket", s.socket)
 }
 
+func (s *GameServer) ensureNotStarted() error {
+	if s.game != nil {
+		return errors.New("game has already started")
+	}
+	return nil
+}
+
 func (s *GameServer) status(w http.ResponseWriter, r *http.Request) {
 	couchcampaign.Respond(w, http.StatusOK, "game is running")
 }
@@ -44,14 +54,16 @@ func (s *GameServer) status(w http.ResponseWriter, r *http.Request) {
 func (s *GameServer) start(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	if s.game != nil {
-		couchcampaign.RespondWithError(w, errors.New("game is already running"))
-		return
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.ensureNotStarted(); err != nil {
+		couchcampaign.RespondWithError(w, err)
 	}
 
-	clients := make(map[couchcampaign.PID]*couchcampaign.Client)
+	clients := make(map[couchcampaign.PID]*couchcampaign.ClientDriver)
 	for pid := range s.conns {
-		clients[pid] = couchcampaign.NewClientFromWebSocket(pid, s.conns[pid])
+		clients[pid] = couchcampaign.NewClientDriverFromWebSocket(pid, s.conns[pid])
 	}
 	game, err := couchcampaign.NewGame(clients)
 	if err != nil {
@@ -79,9 +91,11 @@ func (s *GameServer) start(w http.ResponseWriter, r *http.Request) {
 func (s *GameServer) connect(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	if s.game != nil {
-		couchcampaign.RespondWithError(w, errors.New("game is already started"))
-		return
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.ensureNotStarted(); err != nil {
+		couchcampaign.RespondWithError(w, err)
 	}
 
 	id := couchcampaign.NewPID()

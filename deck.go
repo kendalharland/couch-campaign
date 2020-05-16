@@ -52,6 +52,9 @@ func (d *Deck) InsertCardWithPriority(c Card, priority int) {
 // RemoveCard ...
 func (d *Deck) RemoveCard(c Card) {
 	pos := -1
+	_ = d.h
+	_ = d.h.nodes
+
 	for i, n := range d.h.nodes {
 		if n.card == c {
 			pos = i
@@ -105,16 +108,16 @@ type cardHeapNode struct {
 }
 
 func newCardHeap(cards []Card) *cardHeap {
-	d := &cardHeap{}
+	h := &cardHeap{}
 	for _, card := range cards {
-		d.nodes = append(d.nodes, &cardHeapNode{
+		h.nodes = append(h.nodes, &cardHeapNode{
 			card:          card,
 			priority:      cardPriorityByType(card),
-			insertionTime: d.lastInsertionTime,
+			insertionTime: h.lastInsertionTime,
 		})
 	}
-	d.lastInsertionTime++
-	return d
+	h.lastInsertionTime++
+	return h
 }
 
 func (h *cardHeap) Init() {

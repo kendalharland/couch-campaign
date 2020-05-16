@@ -1,50 +1,130 @@
 package couchcampaign
 
 import (
+	"context"
+	"fmt"
 	"log"
 
 	"github.com/gorilla/websocket"
 )
 
-type Client struct {
+// ClientJob is a unit of work for the ClientDriver.
+type ClientJob struct {
+	Card  Card
+	Stats stats
+}
+
+// ClientMessage represents game input from the client.
+type ClientMessage struct {
+	pid  PID
+	Type ClientMessageType
+
+	card  Card
+	input string
+}
+
+// ClientMessageType describes the kind of message recieved from the client.
+type ClientMessageType int
+
+const (
+	// InputClientMessage is used when the client's message contains game input.
+	//
+	// This is sent when the player plays a card.
+	InputClientMessage ClientMessageType = iota
+
+	// DisconnectClientMessage is used when the client has disconnected from the server.
+	DisconnectClientMessage
+)
+
+// ClientDriver implements a server-side go-routine that communicates with a single client.
+type ClientDriver struct {
 	pid  PID
 	conn *connection
+	out  chan<- ClientMessage
 }
 
-func NewClientFromWebSocket(pid PID, c *websocket.Conn) *Client {
-	conn := newConnection(c)
-	return newClient(conn, pid)
+func NewClientDriverFromWebSocket(pid PID, c *websocket.Conn) *ClientDriver {
+	return NewClientDriver(newConnection(c), pid)
 }
 
-func newClient(c *connection, pid PID) *Client {
-	return &Client{
+func NewClientDriver(c *connection, pid PID) *ClientDriver {
+	return &ClientDriver{
 		conn: c,
 		pid:  pid,
 	}
 }
 
-func (cli *Client) run(jobs <-chan func(*Client)) {
-	for job := range jobs {
-		job(cli)
+func (cli *ClientDriver) setOutChan(out chan<- ClientMessage) {
+	cli.out = out
+}
+
+// Run executes each job from the input channel.
+//
+// It exits either when all jobs are complete or when the connection is closed.
+//
+// This should be run in a separate Go-routine.
+func (cli *ClientDriver) Run(ctx context.Context, in <-chan ClientJob) {
+	// for {
+	// 	select {
+	// 	case job := <- in:
+	// 		job(cli)
+	// 	default:
+	// 		if cli.conn.c.
+	// 	}
+	for job := range in {
+		if err := cli.do(job); err != nil {
+			if websocket.IsCloseError(err, websocket.CloseAbnormalClosure, websocket.CloseGoingAway, websocket.CloseInternalServerErr) {
+				cli.out <- ClientMessage{
+					pid:  cli.pid,
+					Type: DisconnectClientMessage,
+				}
+				return
+			}
+			log.Printf("ClientDriver.do: %v", err)
+		}
 	}
 }
 
-func (cli *Client) getInput() (string, error) {
-	_, message, err := cli.conn.Read()
+func (cli *ClientDriver) do(job ClientJob) error {
+	if err := cli.showCard(job.Card, job.Stats); err != nil {
+		return err
+	}
+
+	if cardRequiresInput(job.Card) {
+		input, err := cli.getInput()
+		if err != nil {
+			return err
+		}
+		cli.out <- ClientMessage{
+			pid:   cli.pid,
+			Type:  InputClientMessage,
+			card:  job.Card,
+			input: input,
+		}
+		return nil
+	}
+	return nil
+}
+
+func (cli *ClientDriver) close() error {
+	return cli.conn.Close()
+}
+
+func (cli *ClientDriver) getInput() (string, error) {
+	_, input, err := cli.conn.Read()
 	if err != nil {
 		return "", err
 	}
-	return string(message), nil
+	return string(input), nil
 }
 
-func (cli *Client) showCard(c Card, s *stats) {
+func (cli *ClientDriver) showCard(c Card, s stats) error {
 	m, err := renderCard(c, s)
 	if err != nil {
-		log.Printf("renderCard: %v", err)
+		return fmt.Errorf("renderCard: %v", err)
 	}
-	cli.conn.WriteBinary(m)
-}
-
-func (cli *Client) Close() error {
-	return cli.conn.Close()
+	if err := cli.conn.WriteBinary(m); err != nil {
+		return err
+	}
+	return nil
 }

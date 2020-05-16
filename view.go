@@ -6,7 +6,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-func renderCard(c Card, s *stats) ([]byte, error) {
+func renderCard(c Card, s stats) ([]byte, error) {
 	m := PlayerState{
 		Leader:    s.Leader,
 		Wealth:    int32(s.Wealth),

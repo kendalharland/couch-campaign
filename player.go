@@ -9,7 +9,7 @@ import (
 )
 
 // PID is a type alias for a player ID.
-type PID uuid.UUID
+type PID string
 
 // NewPID generates a unique PID.
 func NewPID() PID {
@@ -17,11 +17,11 @@ func NewPID() PID {
 	if err != nil {
 		log.Fatalf("newPID: %v", err)
 	}
-	return PID(id)
+	return PID(id.String())
 }
 
 func (p PID) String() string {
-	return uuid.UUID(p).String()
+	return string(p)
 }
 
 // Leader names

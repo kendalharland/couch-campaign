@@ -49,6 +49,10 @@ func cardTypeOf(c Card) cardType {
 	}
 }
 
+func cardRequiresInput(c Card) bool {
+	return cardTypeOf(c) != votingCardType
+}
+
 type Card interface{}
 
 type actionCard struct {
@@ -86,6 +90,7 @@ func (c actionCard) reject(s *stats) {
 	s.Stability += c.RejStabilityEffect
 }
 
+// TODO: Make this a plain string.
 type infoCard struct {
 	Info string
 }
