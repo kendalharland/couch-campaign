@@ -137,10 +137,15 @@ func (s *LobbyServerImpl) CreateGame(ctx context.Context, m *couchcampaign.Creat
 		Port: port,
 	})
 
-	cmd := exec.Command("couchcampaign", fmt.Sprintf("-port=%d", port))
-	cmd.Env = os.Environ()
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// Set the Cmd explicitly because exec.Command() cannot find binaries
+	// with a suffix on windows.
+	cmd := exec.Cmd{
+		Path:   "couchcampaign",
+		Args:   []string{fmt.Sprintf("-port=%d", port)},
+		Env:    os.Environ(),
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}

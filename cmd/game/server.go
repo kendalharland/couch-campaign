@@ -61,9 +61,9 @@ func (s *GameServer) start(w http.ResponseWriter, r *http.Request) {
 		couchcampaign.RespondWithError(w, err)
 	}
 
-	clients := make(map[couchcampaign.PID]*couchcampaign.ClientDriver)
+	clients := make(map[couchcampaign.PID]*couchcampaign.ClientWorker)
 	for pid := range s.conns {
-		clients[pid] = couchcampaign.NewClientDriverFromWebSocket(pid, s.conns[pid])
+		clients[pid] = couchcampaign.NewClientWorker(pid, s.conns[pid])
 	}
 	game, err := couchcampaign.NewGame(clients)
 	if err != nil {

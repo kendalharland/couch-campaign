@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	proto "github.com/golang/protobuf/proto"
 )
 
 // Cards are stored in a google spreadsheet and exported in TSV format.
@@ -53,6 +55,28 @@ func cardRequiresInput(c Card) bool {
 	return cardTypeOf(c) != votingCardType
 }
 
+func renderCard(c Card, s playerState) ([]byte, error) {
+	m := PlayerState{
+		Leader:    s.Leader,
+		Wealth:    int32(s.Wealth),
+		Health:    int32(s.Health),
+		Stability: int32(s.Stability),
+	}
+
+	switch val := c.(type) {
+	case actionCard:
+		m.Card = &PlayerState_ActionCard{ActionCard: val.toProto()}
+	case infoCard:
+		m.Card = &PlayerState_InfoCard{InfoCard: val.toProto()}
+	case votingCard:
+		m.Card = &PlayerState_VotingCard{VotingCard: val.toProto()}
+	default:
+		return nil, fmt.Errorf("unknown card type: %v", c)
+	}
+
+	return proto.Marshal(&Message{Content: &Message_PlayerState{PlayerState: &m}})
+}
+
 type Card interface{}
 
 type actionCard struct {
@@ -76,18 +100,6 @@ func (c actionCard) toProto() *ActionCard {
 		AcceptText: c.AcceptText,
 		RejectText: c.RejectText,
 	}
-}
-
-func (c actionCard) accept(s *stats) {
-	s.Wealth += c.AccWealthEffect
-	s.Health += c.AccHealthEffect
-	s.Stability += c.AccStabilityEffect
-}
-
-func (c actionCard) reject(s *stats) {
-	s.Wealth += c.RejWealthEffect
-	s.Health += c.RejHealthEffect
-	s.Stability += c.RejStabilityEffect
 }
 
 // TODO: Make this a plain string.

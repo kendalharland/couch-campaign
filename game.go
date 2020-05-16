@@ -35,25 +35,27 @@ var welcomeCard = infoCard{`
 type Game struct {
 	election *electionStateMachine
 	pids     []PID
-	clients  map[PID]*ClientDriver
+	clients  map[PID]*ClientWorker
 	jobs     map[PID]chan ClientJob
-	stats    map[PID]*stats
+	state    map[PID]playerState
 	decks    map[PID]*Deck
 	inputs   chan ClientMessage
+	errors   chan ClientError
 
 	baseCards []Card
 
 	mu sync.Mutex
 }
 
-func NewGame(clients map[PID]*ClientDriver) (*Game, error) {
+func NewGame(clients map[PID]*ClientWorker) (*Game, error) {
 	g := &Game{
 		clients: clients,
 		pids:    make([]PID, 0, len(clients)),
 		decks:   make(map[PID]*Deck),
-		stats:   make(map[PID]*stats),
+		state:   make(map[PID]playerState),
 		jobs:    make(map[PID]chan ClientJob),
 		inputs:  make(chan ClientMessage, len(clients)),
+		errors:  make(chan ClientError, len(clients)),
 	}
 
 	for pid := range clients {
@@ -70,11 +72,9 @@ func NewGame(clients map[PID]*ClientDriver) (*Game, error) {
 	for _, pid := range g.pids {
 		g.decks[pid] = g.buildBaseDeck()
 		g.jobs[pid] = make(chan ClientJob, 2)
-		g.stats[pid] = newStats()
+		g.state[pid] = newPlayerState()
 		// Insert the starting card for all players.
 		g.decks[pid].InsertCardWithPriority(welcomeCard, maxCardPriority)
-		// Fan-in all client output streams.
-		g.clients[pid].setOutChan(g.inputs)
 	}
 
 	return g, nil
@@ -85,12 +85,17 @@ func (g *Game) Run(_ context.Context) {
 
 	// Spawn all clients.
 	for _, pid := range g.pids {
-		go g.clients[pid].Run(g.jobs[pid])
-		g.sendTopCard(pid)
+		go g.clients[pid].Run(g.jobs[pid], g.inputs, g.errors)
+		g.sendNextJob(pid)
 	}
 
 	for !g.isOver() {
-		g.handleInput(<-g.inputs)
+		select {
+		case input := <-g.inputs:
+			g.handleInput(input)
+		case err := <-g.errors:
+			g.handleError(err)
+		}
 	}
 
 	log.Println("Game over")
@@ -98,6 +103,7 @@ func (g *Game) Run(_ context.Context) {
 
 func (g *Game) shutdown() {
 	close(g.inputs)
+	close(g.errors)
 	for _, pid := range g.pids {
 		g.disconnect(pid)
 	}
@@ -110,7 +116,7 @@ func (g *Game) disconnect(pid PID) {
 	delete(g.clients, pid)
 	close(g.jobs[pid])
 	delete(g.jobs, pid)
-	delete(g.stats, pid)
+	delete(g.state, pid)
 	for i, id := range g.pids {
 		if id == pid {
 			g.pids = append(g.pids[i:], g.pids[:i+1]...)
@@ -118,53 +124,58 @@ func (g *Game) disconnect(pid PID) {
 	}
 }
 
+func (g *Game) handleError(err ClientError) {
+	if IsConnectionCloseError(err) {
+		g.disconnect(err.PID)
+		log.Printf("disconnected from client %v", err.PID)
+		return
+	}
+	log.Printf("%v: %v", err.PID, err.Error())
+}
+
 func (g *Game) handleInput(input ClientMessage) {
 	defer g.debugDumpDecks()
 
-	switch card := input.card.(type) {
-	case infoCard:
-		log.Printf("deck: %v, %+v", input.pid, g.decks[input.pid])
-		g.decks[input.pid].RemoveCard(input.card)
-		g.sendTopCard(input.pid)
-	case actionCard:
-		s := g.stats[input.pid]
-		switch input.input {
-		case "accept":
-			card.accept(s)
-		case "reject":
-			card.reject(s)
-		default:
-			log.Printf("invalid action: %q", input.input)
-			return
+	state := g.state[input.PID]
+	switch input.Input {
+	case DismissInfoCardInput:
+		g.decks[input.PID].RemoveCard(input.Card)
+		g.state[input.PID] = OnDismissInfoCard(state, input.Card.(infoCard))
+		g.sendNextJob(input.PID)
+	case AcceptActionCardInput:
+		g.decks[input.PID].RemoveCard(input.Card)
+		g.state[input.PID] = OnAcceptActionCard(state, input.Card.(actionCard))
+		if g.state[input.PID] == EmptyPlayerState {
+			g.decks[input.PID].Clear()
+			crumbleCard := infoCard{"Society has crumbled and you are being forced out of office."}
+			g.decks[input.PID].InsertCardWithPriority(crumbleCard, maxCardPriority)
+			g.decks[input.PID] = g.buildBaseDeck()
+			g.state[input.PID] = newPlayerState()
 		}
-		switch {
-		case s.Wealth <= minStatValue || maxStatValue <= s.Wealth:
-			g.decks[input.pid].Clear()
-			g.decks[input.pid].InsertCardWithPriority(infoCard{"Your state is bankrupt and you are being forced out of office."}, maxCardPriority)
-			g.decks[input.pid] = g.buildBaseDeck()
-			g.stats[input.pid] = newStats()
-		case s.Health <= minStatValue || maxStatValue <= s.Health:
-			g.decks[input.pid].Clear()
-			g.decks[input.pid].InsertCardWithPriority(infoCard{"Basically everyone in your state is dead. you've been removed from office."}, maxCardPriority)
-			g.decks[input.pid] = g.buildBaseDeck()
-			g.stats[input.pid] = newStats()
-		case s.Stability <= minStatValue || maxStatValue <= s.Stability:
-			g.decks[input.pid].Clear()
-			g.decks[input.pid].InsertCardWithPriority(infoCard{"People hate living here so they've staged a coup and removed you from office."}, maxCardPriority)
-			g.decks[input.pid] = g.buildBaseDeck()
-			g.stats[input.pid] = newStats()
+		g.updateElectionState(input)
+		g.sendNextJob(input.PID)
+	case RejectActionCardInput:
+		g.decks[input.PID].RemoveCard(input.Card)
+		g.state[input.PID] = OnRejectActionCard(state, input.Card.(actionCard))
+		if g.state[input.PID] == EmptyPlayerState {
+			g.decks[input.PID].Clear()
+			crumbleCard := infoCard{"Society has crumbled and you are being forced out of office."}
+			g.decks[input.PID].InsertCardWithPriority(crumbleCard, maxCardPriority)
+			g.decks[input.PID] = g.buildBaseDeck()
+			g.state[input.PID] = newPlayerState()
 		}
-		g.decks[input.pid].RemoveCard(input.card)
 		g.updateElectionState(input)
-		g.sendTopCard(input.pid)
-	case votingCard:
-		g.updateElectionState(input)
+		g.sendNextJob(input.PID)
+	default:
+		if _, ok := input.Card.(votingCard); ok {
+			g.updateElectionState(input)
+		}
 	}
 }
 
 func (g *Game) updateElectionState(input ClientMessage) {
 	oldSeason := g.election.CurrentSeason()
-	newSeason := g.election.HandleCardPlayed(input.pid, input.card)
+	newSeason := g.election.HandleCardPlayed(input.PID, input.Card)
 	if oldSeason == newSeason {
 		return
 	}
@@ -175,7 +186,9 @@ func (g *Game) updateElectionState(input ClientMessage) {
 		break
 	case oldSeason == campaignSeason && newSeason == votingSeason:
 		g.annouce("Voting season has begun!")
-		g.waitForVotes()
+		for _, pid := range g.pids {
+			g.decks[pid].InsertCard(theVotingCard)
+		}
 		break
 	case oldSeason == votingSeason && newSeason == offSeason:
 		// If we went from voting season to the off season then all players were
@@ -194,7 +207,7 @@ func (g *Game) updateElectionState(input ClientMessage) {
 		}
 		g.annouce("The offseason has begun!")
 		for _, pid := range g.pids {
-			g.sendTopCard(pid)
+			g.sendNextJob(pid)
 		}
 		break
 	default:
@@ -217,11 +230,10 @@ func (g *Game) buildBaseDeck() *Deck {
 }
 
 func (g *Game) computeElectionWinner() PID {
-	// Whoever has the highest average score wins.
 	highscore := math.MinInt64
 	scores := make(map[int][]PID)
 	for _, pid := range g.pids {
-		score := g.stats[pid].Sum()
+		score := g.state[pid].SocietyScore()
 		scores[score] = append(scores[score], pid)
 		if score > highscore {
 			highscore = score
@@ -236,7 +248,7 @@ func (g *Game) computeElectionWinner() PID {
 	minVariance := math.MaxFloat64
 	variances := make(map[float64][]PID)
 	for _, pid := range scores[highscore] {
-		variance := g.stats[pid].Variance()
+		variance := g.state[pid].SocietyVariance()
 		variances[variance] = append(variances[variance], pid)
 		if variance < minVariance {
 			minVariance = variance
@@ -264,20 +276,15 @@ func (g *Game) isOver() bool {
 	return len(g.clients) <= 0
 }
 
-func (g *Game) sendTopCard(pid PID) {
+func (g *Game) sendNextJob(pid PID) {
 	if g.decks[pid].IsEmpty() {
 		g.decks[pid] = g.buildBaseDeck()
 	}
+	nextCard := g.decks[pid].TopCard()
 
 	g.jobs[pid] <- ClientJob{
-		Card:  g.decks[pid].TopCard(),
-		Stats: *(g.stats[pid]),
+		Card:  nextCard,
+		Stats: g.state[pid],
 	}
 	log.Printf("Sent top card to %v", pid)
-}
-
-func (g *Game) waitForVotes() {
-	for _, pid := range g.pids {
-		g.decks[pid].InsertCard(theVotingCard)
-	}
 }

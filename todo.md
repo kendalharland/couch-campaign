@@ -19,6 +19,7 @@
 * Client: Return to the main menu when the game is over.
 * Client: Show a disconnect message and return to main menu when socket is closed.
 * Client: Display time-in-office in footer.
+* Server: Redesign the game state as func(ClientInput) GameOutput. Test that function
 
 # Deferred
 * [DONE] Come up with algorithm for determining who wins the election.
