@@ -1,7 +1,6 @@
 package couchcampaign
 
 import (
-	"context"
 	"fmt"
 	"log"
 
@@ -63,15 +62,8 @@ func (cli *ClientDriver) setOutChan(out chan<- ClientMessage) {
 // It exits either when all jobs are complete or when the connection is closed.
 //
 // This should be run in a separate Go-routine.
-func (cli *ClientDriver) Run(ctx context.Context, in <-chan ClientJob) {
-	// for {
-	// 	select {
-	// 	case job := <- in:
-	// 		job(cli)
-	// 	default:
-	// 		if cli.conn.c.
-	// 	}
-	for job := range in {
+func (cli *ClientDriver) Run(jobs <-chan ClientJob) {
+	for job := range jobs {
 		if err := cli.do(job); err != nil {
 			if websocket.IsCloseError(err, websocket.CloseAbnormalClosure, websocket.CloseGoingAway, websocket.CloseInternalServerErr) {
 				cli.out <- ClientMessage{
@@ -80,7 +72,7 @@ func (cli *ClientDriver) Run(ctx context.Context, in <-chan ClientJob) {
 				}
 				return
 			}
-			log.Printf("ClientDriver.do: %v", err)
+			log.Printf("ClientDriver %v do: %v", cli.pid, err)
 		}
 	}
 }

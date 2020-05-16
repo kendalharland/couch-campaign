@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"sync"
 )
 
 // Game options.
@@ -23,13 +24,13 @@ const (
 	numCardsBetweenElections = 10
 )
 
-var welcomeMessage = `
+var welcomeCard = infoCard{`
 	Welcome to couchcampaign!
 
 	Today is your first day in office as the governor.
 	Work with your advisors to stay in office as long as you can.
 	Remember, the ultimate goal is to win the presidency.
-`
+`}
 
 type Game struct {
 	election *electionStateMachine
@@ -41,6 +42,8 @@ type Game struct {
 	inputs   chan ClientMessage
 
 	baseCards []Card
+
+	mu sync.Mutex
 }
 
 func NewGame(clients map[PID]*ClientDriver) (*Game, error) {
@@ -56,36 +59,33 @@ func NewGame(clients map[PID]*ClientDriver) (*Game, error) {
 	for pid := range clients {
 		g.pids = append(g.pids, pid)
 	}
+	g.election = newElectionStateMachine(numCardsBetweenElections, g.pids)
 
-	baseCards, err := loadBaseCards()
+	var err error
+	g.baseCards, err = loadBaseCards()
 	if err != nil {
 		return nil, fmt.Errorf("loadBaseCards: %w", err)
 	}
-
-	g.election = newElectionStateMachine(numCardsBetweenElections, g.pids)
-	g.baseCards = baseCards
 
 	for _, pid := range g.pids {
 		g.decks[pid] = g.buildBaseDeck()
 		g.jobs[pid] = make(chan ClientJob, 2)
 		g.stats[pid] = newStats()
-
 		// Insert the starting card for all players.
-		g.decks[pid].InsertCardWithPriority(infoCard{welcomeMessage}, maxCardPriority)
-
+		g.decks[pid].InsertCardWithPriority(welcomeCard, maxCardPriority)
 		// Fan-in all client output streams.
 		g.clients[pid].setOutChan(g.inputs)
-
-		log.Printf("deck %v: %v", pid, g.decks[pid])
 	}
 
 	return g, nil
 }
 
 func (g *Game) Run(_ context.Context) {
+	defer g.shutdown()
+
 	// Spawn all clients.
 	for _, pid := range g.pids {
-		go g.clients[pid].Run(context.Background(), g.jobs[pid])
+		go g.clients[pid].Run(g.jobs[pid])
 		g.sendTopCard(pid)
 	}
 
@@ -93,17 +93,22 @@ func (g *Game) Run(_ context.Context) {
 		g.handleInput(<-g.inputs)
 	}
 
-	close(g.inputs)
-	for _, c := range g.jobs {
-		close(c)
-	}
-
 	log.Println("Game over")
 }
 
+func (g *Game) shutdown() {
+	close(g.inputs)
+	for _, pid := range g.pids {
+		g.disconnect(pid)
+	}
+}
+
 func (g *Game) disconnect(pid PID) {
-	log.Printf("Client close: %v", g.clients[pid].close())
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	delete(g.clients, pid)
+	close(g.jobs[pid])
 	delete(g.jobs, pid)
 	delete(g.stats, pid)
 	for i, id := range g.pids {
