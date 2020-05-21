@@ -128,8 +128,7 @@ func (g *GameState) handleMessage(input ClientMessage) (jobs []ClientJob, err er
 	state := g.playerStates[input.PID]
 	switch input.Input {
 	case DismissInfoCardInput:
-		g.decks[input.PID].RemoveCard(input.Card)
-		g.playerStates[input.PID] = OnDismissInfoCard(state, input.Card.(infoCard))
+		g.OnPlayerDismissedInfoCard(input.PID)
 		jobs = []ClientJob{g.getNextJob(input.PID)}
 	case AcceptActionCardInput:
 		g.decks[input.PID].RemoveCard(input.Card)
@@ -212,12 +211,18 @@ func (g *GameState) updateElectionState(input ClientMessage) (jobs []ClientJob, 
 	return jobs, nil
 }
 
-func OnVotingCard(s playerState, _ votingCard) (next playerState) {
-	next = s
-	return checkPlayerState(next)
+// OnPlayerDismissedInfoCard is called when an InfoCard is dismissed.
+//
+// pid is the PID of the player that dismissed the card.
+// The player state represented by pid is the only player state that is updated.
+func (g *GameState) OnPlayerDismissedInfoCard(pid PID) {
+	ps := g.playerStates[pid]
+	g.decks[pid].RemoveCard(ps.Card)
+	ps = checkPlayerState(ps)
+	g.playerStates[pid] = ps
 }
 
-func OnDismissInfoCard(s playerState, _ infoCard) (next playerState) {
+func OnVotingCard(s playerState, _ votingCard) (next playerState) {
 	next = s
 	return checkPlayerState(next)
 }
