@@ -130,8 +130,7 @@ func (g *GameState) handleMessage(input ClientMessage) (jobs []ClientJob, err er
 	case DismissInfoCardInput:
 		g.decks[input.PID].RemoveCard(input.Card)
 		g.playerStates[input.PID] = OnDismissInfoCard(state, input.Card.(infoCard))
-		jobs = append(jobs, g.getNextJob(input.PID))
-		return jobs, nil
+		jobs = []ClientJob{g.getNextJob(input.PID)}
 	case AcceptActionCardInput:
 		g.decks[input.PID].RemoveCard(input.Card)
 		g.playerStates[input.PID] = OnAcceptActionCard(state, input.Card.(actionCard))
@@ -142,9 +141,7 @@ func (g *GameState) handleMessage(input ClientMessage) (jobs []ClientJob, err er
 			g.decks[input.PID] = g.buildBaseDeck()
 			g.playerStates[input.PID] = newPlayerState()
 		}
-		jobs, err := g.updateElectionState(input)
-		jobs = append(jobs, g.getNextJob(input.PID))
-		return jobs, err
+		jobs, err = g.updateElectionState(input)
 	case RejectActionCardInput:
 		g.decks[input.PID].RemoveCard(input.Card)
 		g.playerStates[input.PID] = OnRejectActionCard(state, input.Card.(actionCard))
@@ -155,18 +152,12 @@ func (g *GameState) handleMessage(input ClientMessage) (jobs []ClientJob, err er
 			g.decks[input.PID] = g.buildBaseDeck()
 			g.playerStates[input.PID] = newPlayerState()
 		}
-		jobs, err := g.updateElectionState(input)
-		jobs = append(jobs, g.getNextJob(input.PID))
-		return jobs, err
+		jobs, err = g.updateElectionState(input)
 	default:
-		if _, ok := input.Card.(votingCard); ok {
-			jobs, err := g.updateElectionState(input)
-			jobs = append(jobs, g.getNextJob(input.PID))
-			return jobs, err
-		}
+		jobs, err = g.updateElectionState(input)
 	}
 
-	return nil, nil
+	return jobs, err
 }
 
 func (g *GameState) debugDumpDecks() {
