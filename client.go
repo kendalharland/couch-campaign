@@ -8,6 +8,7 @@ import (
 
 // ClientJob is a unit of work for the ClientDriver.
 type ClientJob struct {
+	PID   PID
 	Card  Card
 	Stats playerState
 }
@@ -103,7 +104,6 @@ func (w *ClientWorker) do(job ClientJob) (ClientInput, error) {
 	}
 	if !cardRequiresInput(job.Card) {
 		return -1, nil
-
 	}
 	input, err := w.driver.getInput()
 	if err != nil {

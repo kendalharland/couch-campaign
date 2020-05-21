@@ -85,30 +85,6 @@ func newPlayerState() playerState {
 	}
 }
 
-func OnVotingCard(s playerState, _ votingCard) (next playerState) {
-	next = s
-	return checkPlayerState(next)
-}
-
-func OnDismissInfoCard(s playerState, _ infoCard) (next playerState) {
-	next = s
-	return checkPlayerState(next)
-}
-
-func OnAcceptActionCard(s playerState, c actionCard) (next playerState) {
-	next.Wealth = s.Wealth + c.AccWealthEffect
-	next.Health = s.Health + c.AccHealthEffect
-	next.Stability = s.Stability + c.AccStabilityEffect
-	return checkPlayerState(next)
-}
-
-func OnRejectActionCard(s playerState, c actionCard) (next playerState) {
-	next.Wealth = s.Wealth + c.RejWealthEffect
-	next.Health = s.Health + c.RejHealthEffect
-	next.Stability = s.Stability + c.RejStabilityEffect
-	return checkPlayerState(next)
-}
-
 func checkPlayerState(s playerState) playerState {
 	switch {
 	case s.Wealth <= minStatValue || maxStatValue <= s.Wealth:
