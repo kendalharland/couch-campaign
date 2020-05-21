@@ -15,9 +15,7 @@ type ClientJob struct {
 
 // ClientMessage represents game input from the client.
 type ClientMessage struct {
-	PID  PID
-	Type ClientMessageType
-
+	PID   PID
 	Card  Card
 	Input ClientInput
 }
@@ -31,20 +29,6 @@ type ClientError struct {
 func (e ClientError) Error() string {
 	return e.err.Error()
 }
-
-// ClientMessageType describes the kind of message recieved from the client.
-type ClientMessageType int
-
-// ClientMessage type constants.
-const (
-	// InputClientMessage is used when the client's message contains game input.
-	//
-	// This is sent when the player plays a card.
-	InputClientMessage ClientMessageType = iota
-
-	// DisconnectClientMessage is used when the client has disconnected from the server.
-	DisconnectClientMessage
-)
 
 type ClientInput int
 
@@ -86,7 +70,6 @@ func (w *ClientWorker) Run(jobs <-chan ClientJob, messages chan<- ClientMessage,
 		} else if input != NoInput {
 			messages <- ClientMessage{
 				PID:   w.PID,
-				Type:  InputClientMessage,
 				Card:  job.Card,
 				Input: input,
 			}
