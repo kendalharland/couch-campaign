@@ -40,8 +40,8 @@ type GameState struct {
 	baseCards []Card
 }
 
-func newGameState(pids []PID, baseCards []Card) GameState {
-	state := GameState{
+func newGameState(pids []PID, baseCards []Card) *GameState {
+	state := &GameState{
 		pids:         pids,
 		baseCards:    baseCards,
 		decks:        make(map[PID]*Deck),
@@ -54,23 +54,6 @@ func newGameState(pids []PID, baseCards []Card) GameState {
 		state.decks[pid].InsertCardWithPriority(welcomeCard, maxCardPriority)
 	}
 	return state
-}
-
-func (g *GameState) handleMessage(m ClientMessage) (pids []PID, err error) {
-	// TODO: Put this behind a flag.
-	defer g.debugDumpDecks()
-
-	switch m.Input {
-	case DismissInfoCardInput:
-		g.OnPlayerDismissedInfoCard(m.PID)
-		return []PID{m.PID}, nil
-	case AcceptActionCardInput:
-		return g.OnPlayerAcceptedActionCard(m.PID)
-	case RejectActionCardInput:
-		return g.OnPlayerRejectedActionCard(m.PID)
-	default:
-		return g.updateElectionState(m.PID)
-	}
 }
 
 // OnPlayerDismissedInfoCard is called when an InfoCard is dismissed.

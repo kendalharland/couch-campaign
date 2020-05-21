@@ -12,7 +12,7 @@ import (
 // Its main purpose is to route messages to and from clients and monitor each
 // client's connection state.
 type Game struct {
-	state          GameState
+	state          *GameState
 	clients        map[PID]*ClientWorker
 	clientJobs     map[PID]chan ClientJob
 	clientMessages chan ClientMessage
@@ -60,7 +60,7 @@ func (g *Game) Run(_ context.Context) {
 	for !g.isOver() {
 		select {
 		case message := <-g.clientMessages:
-			pids, err := g.state.handleMessage(message)
+			pids, err := g.handleMessage(message)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -78,6 +78,23 @@ func (g *Game) Run(_ context.Context) {
 	}
 
 	log.Println("Game over")
+}
+
+func (g *Game) handleMessage(m ClientMessage) (pids []PID, err error) {
+	// TODO: Put this behind a flag.
+	defer g.state.debugDumpDecks()
+
+	switch m.Input {
+	case DismissInfoCardInput:
+		g.state.OnPlayerDismissedInfoCard(m.PID)
+		return []PID{m.PID}, nil
+	case AcceptActionCardInput:
+		return g.state.OnPlayerAcceptedActionCard(m.PID)
+	case RejectActionCardInput:
+		return g.state.OnPlayerRejectedActionCard(m.PID)
+	default:
+		return g.state.updateElectionState(m.PID)
+	}
 }
 
 func (g *Game) shutdown() {
