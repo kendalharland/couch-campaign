@@ -122,41 +122,23 @@ func (g *GameState) removePlayer(pid PID) {
 	delete(g.playerStates, pid)
 }
 
-func (g *GameState) handleMessage(input ClientMessage) (jobs []ClientJob, err error) {
+func (g *GameState) handleMessage(input ClientMessage) (pids []PID, err error) {
+	// TODO: Put this behind a flag.
 	defer g.debugDumpDecks()
 
-	state := g.playerStates[input.PID]
 	switch input.Input {
 	case DismissInfoCardInput:
 		g.OnPlayerDismissedInfoCard(input.PID)
-		jobs = []ClientJob{g.getNextJob(input.PID)}
+		pids = []PID{input.PID}
 	case AcceptActionCardInput:
-		g.decks[input.PID].RemoveCard(input.Card)
-		g.playerStates[input.PID] = OnAcceptActionCard(state, input.Card.(actionCard))
-		if g.playerStates[input.PID] == EmptyPlayerState {
-			g.decks[input.PID].Clear()
-			crumbleCard := infoCard{"Society has crumbled and you are being forced out of office."}
-			g.decks[input.PID].InsertCardWithPriority(crumbleCard, maxCardPriority)
-			g.decks[input.PID] = g.buildBaseDeck()
-			g.playerStates[input.PID] = newPlayerState()
-		}
-		jobs, err = g.updateElectionState(input)
+		pids, err = g.OnPlayerAcceptedActionCard(input.PID)
 	case RejectActionCardInput:
-		g.decks[input.PID].RemoveCard(input.Card)
-		g.playerStates[input.PID] = OnRejectActionCard(state, input.Card.(actionCard))
-		if g.playerStates[input.PID] == EmptyPlayerState {
-			g.decks[input.PID].Clear()
-			crumbleCard := infoCard{"Society has crumbled and you are being forced out of office."}
-			g.decks[input.PID].InsertCardWithPriority(crumbleCard, maxCardPriority)
-			g.decks[input.PID] = g.buildBaseDeck()
-			g.playerStates[input.PID] = newPlayerState()
-		}
-		jobs, err = g.updateElectionState(input)
+		pids, err = g.OnPlayerRejectedActionCard(input.PID)
 	default:
-		jobs, err = g.updateElectionState(input)
+		pids, err = g.updateElectionState(input.PID)
 	}
 
-	return jobs, err
+	return pids, err
 }
 
 func (g *GameState) debugDumpDecks() {
@@ -167,11 +149,12 @@ func (g *GameState) debugDumpDecks() {
 	}
 }
 
-func (g *GameState) updateElectionState(input ClientMessage) (jobs []ClientJob, err error) {
+func (g *GameState) updateElectionState(pid PID) (pids []PID, err error) {
+	card := g.playerStates[pid]
 	oldSeason := g.election.CurrentSeason()
-	newSeason := g.election.HandleCardPlayed(input.PID, input.Card)
+	newSeason := g.election.HandleCardPlayed(pid, card)
 	if oldSeason == newSeason {
-		return jobs, nil
+		return pids, nil
 	}
 
 	switch {
@@ -200,15 +183,13 @@ func (g *GameState) updateElectionState(input ClientMessage) (jobs []ClientJob, 
 			}
 		}
 		g.announce("The offseason has begun!")
-		for _, pid := range g.pids {
-			jobs = append(jobs, g.getNextJob(pid))
-		}
+		pids = g.pids
 		break
 	default:
 		return nil, fmt.Errorf("invalid transition from %s to %s", oldSeason, newSeason)
 	}
 
-	return jobs, nil
+	return pids, nil
 }
 
 // OnPlayerDismissedInfoCard is called when an InfoCard is dismissed.
@@ -220,6 +201,44 @@ func (g *GameState) OnPlayerDismissedInfoCard(pid PID) {
 	g.decks[pid].RemoveCard(ps.Card)
 	ps = checkPlayerState(ps)
 	g.playerStates[pid] = ps
+}
+
+// OnPlayerAcceptedActionCard is called when an ActionCard is accepted.
+//
+// pid is the PID of the player that dismissed the card.
+// Returns a list of PIDs for the players whose state was updated.
+func (g *GameState) OnPlayerAcceptedActionCard(pid PID) ([]PID, error) {
+	ps := g.playerStates[pid]
+	g.decks[pid].RemoveCard(ps.Card)
+
+	ps = OnAcceptActionCard(ps, ps.Card.(actionCard))
+	if ps == EmptyPlayerState {
+		g.decks[pid].Clear()
+		crumbleCard := infoCard{"Society has crumbled and you are being forced out of office."}
+		g.decks[pid].InsertCardWithPriority(crumbleCard, maxCardPriority)
+		g.decks[pid] = g.buildBaseDeck()
+		ps = newPlayerState()
+	}
+
+	g.playerStates[pid] = ps
+	return g.updateElectionState(pid)
+}
+
+func (g *GameState) OnPlayerRejectedActionCard(pid PID) ([]PID, error) {
+	ps := g.playerStates[pid]
+	g.decks[pid].RemoveCard(ps.Card)
+
+	ps = OnRejectActionCard(ps, ps.Card.(actionCard))
+	if ps == EmptyPlayerState {
+		g.decks[pid].Clear()
+		crumbleCard := infoCard{"Society has crumbled and you are being forced out of office."}
+		g.decks[pid].InsertCardWithPriority(crumbleCard, maxCardPriority)
+		g.decks[pid] = g.buildBaseDeck()
+		g.playerStates[pid] = newPlayerState()
+	}
+
+	g.playerStates[pid] = ps
+	return g.updateElectionState(pid)
 }
 
 func OnVotingCard(s playerState, _ votingCard) (next playerState) {

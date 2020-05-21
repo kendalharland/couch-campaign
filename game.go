@@ -60,12 +60,12 @@ func (g *Game) Run(_ context.Context) {
 	for !g.isOver() {
 		select {
 		case message := <-g.clientMessages:
-			jobs, err := g.state.handleMessage(message)
+			pids, err := g.state.handleMessage(message)
 			if err != nil {
 				log.Fatal(err)
 			}
-			for _, job := range jobs {
-				g.clientJobs[job.PID] <- job
+			for _, pid := range pids {
+				g.clientJobs[pid] <- g.state.getNextJob(pid)
 			}
 		case err := <-g.clientErrors:
 			if IsConnectionCloseError(err) {

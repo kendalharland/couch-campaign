@@ -67,6 +67,8 @@ const (
 // EmptyPlayerState is returned when a player's society has collapsed.
 var EmptyPlayerState = playerState{}
 
+// Player state is only modified when the client that owns this state sends
+// a message to the server.
 type playerState struct {
 	Card      Card
 	Leader    string
