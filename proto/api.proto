@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = ".;couchcampaign";
+option go_package = ".;proto";
 package couchcampaign;
 
 enum SessionState {

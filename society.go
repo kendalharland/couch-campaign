@@ -1,4 +1,4 @@
-package couchcampaign
+package cardgame
 
 import (
 	"log"
@@ -9,6 +9,8 @@ import (
 )
 
 // Leader names
+//
+// TODO This should be part of the client library.
 var leaders = []string{
 	"Argal Essential",
 	"Ate Predicate",
@@ -42,9 +44,6 @@ var leaders = []string{
 	"Rate Ate",
 }
 
-// PID is a type alias for a player ID.
-type PID string
-
 // NewPID generates a unique PID.
 func NewPID() PID {
 	id, err := uuid.NewV4()
@@ -64,22 +63,22 @@ const (
 	minStatValue  = 0
 )
 
-// EmptyPlayerState is returned when a player's society has collapsed.
-var EmptyPlayerState = playerState{}
+// NilSocietyState is returned when a player's society has collapsed.
+var NilSocietyState = SocietyState{}
 
-// Player state is only modified when the client that owns this state sends
+// SocietyState is only modified when the client that owns this state sends
 // a message to the server.
-type playerState struct {
-	Card      Card
+type SocietyState struct {
+	CardRef   CardRef
 	Leader    string
 	Wealth    int
 	Stability int
 	Health    int
 }
 
-func newPlayerState() playerState {
-	return playerState{
-		Card:      nil,
+func newSocietyState() SocietyState {
+	return SocietyState{
+		CardRef:   "",
 		Leader:    leaders[rand.Intn(len(leaders))],
 		Wealth:    initStatValue,
 		Health:    initStatValue,
@@ -87,24 +86,24 @@ func newPlayerState() playerState {
 	}
 }
 
-func checkPlayerState(s playerState) playerState {
+func checkSocietyState(s SocietyState) SocietyState {
 	switch {
 	case s.Wealth <= minStatValue || maxStatValue <= s.Wealth:
-		return EmptyPlayerState
+		return NilSocietyState
 	case s.Health <= minStatValue || maxStatValue <= s.Health:
-		return EmptyPlayerState
+		return NilSocietyState
 	case s.Stability <= minStatValue || maxStatValue <= s.Stability:
-		return EmptyPlayerState
+		return NilSocietyState
 	default:
 		return s
 	}
 }
 
-func (s playerState) SocietyScore() int {
+func (s SocietyState) SocietyScore() int {
 	return s.Wealth + s.Stability + s.Health
 }
 
-func (s playerState) SocietyVariance() float64 {
+func (s SocietyState) SocietyVariance() float64 {
 	return stat.Variance([]float64{
 		float64(s.Wealth),
 		float64(s.Stability),

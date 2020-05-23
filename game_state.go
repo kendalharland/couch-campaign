@@ -1,220 +1,121 @@
-package couchcampaign
+package cardgame
 
 import (
-	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"os"
+
+	"google.golang.org/protobuf/proto"
+
+	pb "couchcampaign/proto"
 )
-
-// Game options.
-const (
-	// The number of cards drawn from a single player's deck between elections.
-	//
-	// Once at least one player draws this many cards during an offseason, the
-	// next campaign season begins. Once all players have drawn at least this
-	// many cards, voting season begins. Voting season ends when all clients are
-	// finished counting votes and the election results are released.
-	//
-	// This offseason -> campaign -> voting scheme is used to reward players who
-	// swipe cards quickly and avoid waiting on slower players.
-	numCardsBetweenElections = 10
-)
-
-var welcomeCard = infoCard{`
-	Welcome to couchcampaign!
-
-	Today is your first day in office as the governor.
-	Work with your advisors to stay in office as long as you can.
-	Remember, the ultimate goal is to win the presidency.
-`}
 
 type GameState struct {
-	pids         []PID
-	playerStates map[PID]playerState
-	decks        map[PID]*Deck
-	election     *electionStateMachine
-
-	// This is a hack. delete.
-	baseCards []Card
+	pids      []PID
+	cards     CardService
+	decks     map[PID]*Deck
+	societies map[PID]SocietyState
 }
 
-func newGameState(pids []PID, baseCards []Card) *GameState {
+func NewGameState(pids []PID, cards CardService) *GameState {
 	state := &GameState{
-		pids:         pids,
-		baseCards:    baseCards,
-		decks:        make(map[PID]*Deck),
-		playerStates: make(map[PID]playerState),
-		election:     newElectionStateMachine(numCardsBetweenElections, pids),
+		pids:      pids,
+		cards:     cards,
+		decks:     make(map[PID]*Deck),
+		societies: make(map[PID]SocietyState),
 	}
 	for _, pid := range pids {
-		state.playerStates[pid] = newPlayerState()
-		state.decks[pid] = state.buildBaseDeck()
-		state.decks[pid].InsertCardWithPriority(welcomeCard, maxCardPriority)
+		state.societies[pid] = newSocietyState()
+		state.decks[pid] = cards.BuildIntroDeck()
 	}
 	return state
 }
 
-// OnPlayerDismissedInfoCard is called when an InfoCard is dismissed.
-//
-// pid is the PID of the player that dismissed the card.
-// The player state represented by pid is the only player state that is updated.
-func (g *GameState) OnPlayerDismissedInfoCard(pid PID) {
-	ps := g.playerStates[pid]
-	g.decks[pid].RemoveCard(ps.Card)
-	ps = checkPlayerState(ps)
-	g.playerStates[pid] = ps
-}
-
-// OnPlayerAcceptedActionCard is called when an ActionCard is accepted.
+// OnCardAccepted is called when a Card is accepted.
 //
 // pid is the PID of the player that dismissed the card.
 // Returns a list of PIDs for the players whose state was updated.
-func (g *GameState) OnPlayerAcceptedActionCard(pid PID) ([]PID, error) {
-	ps := g.playerStates[pid]
-	g.decks[pid].RemoveCard(ps.Card)
+func (g *GameState) OnCardAccepted(pid PID) ([]PID, error) {
+	society := g.societies[pid]
+	g.decks[pid].RemoveCard(society.CardRef)
+	g.cards.Card(society.CardRef).OnAccept(g, pid, society.CardRef)
 
-	ps = OnAcceptActionCard(ps, ps.Card.(actionCard))
-	if ps == EmptyPlayerState {
-		g.decks[pid].Clear()
-		crumbleCard := infoCard{"Society has crumbled and you are being forced out of office."}
-		g.decks[pid].InsertCardWithPriority(crumbleCard, maxCardPriority)
-		g.decks[pid] = g.buildBaseDeck()
-		ps = newPlayerState()
+	// Move this to game logic.
+	society = checkSocietyState(society)
+	if society == NilSocietyState {
+		g.decks[pid] = g.cards.BuildSocietyCrumbledDeck()
+		society = newSocietyState()
 	}
 
-	g.playerStates[pid] = ps
-	return g.updateElectionState(pid)
+	g.societies[pid] = society
+	return nil, nil
 }
 
-// OnPlayerRejectedActionCard is called when an ActionCard is rejected.
+// OnCardRejected is called when a Card is rejected.
 //
 // pid is the PID of the player that dismissed the card.
 // Returns a list of PIDs for the players whose state was updated.
-func (g *GameState) OnPlayerRejectedActionCard(pid PID) ([]PID, error) {
-	ps := g.playerStates[pid]
-	g.decks[pid].RemoveCard(ps.Card)
+func (g *GameState) OnCardRejected(pid PID) ([]PID, error) {
+	society := g.societies[pid]
+	g.decks[pid].RemoveCard(society.CardRef)
+	g.cards.Card(society.CardRef).OnReject(g, pid, society.CardRef)
 
-	ps = OnRejectActionCard(ps, ps.Card.(actionCard))
-	if ps == EmptyPlayerState {
-		g.decks[pid].Clear()
-		crumbleCard := infoCard{"Society has crumbled and you are being forced out of office."}
-		g.decks[pid].InsertCardWithPriority(crumbleCard, maxCardPriority)
-		g.decks[pid] = g.buildBaseDeck()
-		g.playerStates[pid] = newPlayerState()
+	// Move this to game logic.
+	society = checkSocietyState(society)
+	if society == NilSocietyState {
+		g.decks[pid] = g.cards.BuildSocietyCrumbledDeck()
+		g.societies[pid] = newSocietyState()
 	}
 
-	g.playerStates[pid] = ps
-	return g.updateElectionState(pid)
+	g.societies[pid] = society
+	return nil, nil
 }
 
-func (g *GameState) announce(message string) {
-	for _, pid := range g.pids {
-		g.decks[pid].InsertCard(infoCard{message})
-	}
+// OnCardShown is called when a card is shown to the player.
+//
+// pid is the PID of the player that saw the card.
+// Returns a list of PIDs for the players whose state was updated.
+func (g *GameState) OnCardShown(pid PID) ([]PID, error) {
+	society := g.societies[pid]
+	g.cards.Card(society.CardRef).OnShown(g, pid, society.CardRef)
+
+	// Move this to game logic.
+	society = checkSocietyState(society)
+	return nil, nil
 }
 
 func (g *GameState) getNextJob(pid PID) ClientJob {
 	if g.decks[pid].IsEmpty() {
-		g.decks[pid] = g.buildBaseDeck()
+		g.decks[pid] = g.cards.BuildBaseDeck()
 	}
+
+	card := g.cards.Card(g.decks[pid].TopCard())
+	society := g.societies[pid]
+	state, err := proto.Marshal(&pb.Message{
+		Content: &pb.Message_PlayerState{
+			PlayerState: &pb.PlayerState{
+				Card:      card.toProto(),
+				Leader:    society.Leader,
+				Wealth:    int32(society.Wealth),
+				Health:    int32(society.Health),
+				Stability: int32(society.Stability),
+			},
+		},
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return ClientJob{
-		PID:   pid,
-		Card:  g.decks[pid].TopCard(),
-		Stats: g.playerStates[pid],
+		PID:           pid,
+		State:         state,
+		RequiresInput: g.cards.CardRequiresInput(card.ID),
 	}
-}
-
-func (g *GameState) buildBaseDeck() *Deck {
-	cards := make([]Card, len(g.baseCards))
-	copy(cards, g.baseCards)
-	deck := NewDeck(cards)
-	deck.ShuffleActionCards()
-	return deck
-}
-
-func (g *GameState) computeElectionWinner() PID {
-	highscore := math.MinInt64
-	scores := make(map[int][]PID)
-	for _, pid := range g.pids {
-		score := g.playerStates[pid].SocietyScore()
-		scores[score] = append(scores[score], pid)
-		if score > highscore {
-			highscore = score
-		}
-	}
-
-	if len(scores[highscore]) == 1 {
-		return scores[highscore][0]
-	}
-
-	// If there's a tie, whoever tied and has the most balanced stats wins.
-	minVariance := math.MaxFloat64
-	variances := make(map[float64][]PID)
-	for _, pid := range scores[highscore] {
-		variance := g.playerStates[pid].SocietyVariance()
-		variances[variance] = append(variances[variance], pid)
-		if variance < minVariance {
-			minVariance = variance
-		}
-	}
-
-	if len(variances[minVariance]) == 1 {
-		return variances[minVariance][0]
-	}
-
-	// If there's a tie, the winner is randomly chosen, just like real life.
-	ties := variances[minVariance]
-	return ties[rand.Intn(len(ties))]
 }
 
 func (g *GameState) removePlayer(pid PID) {
-	delete(g.playerStates, pid)
+	delete(g.societies, pid)
 	delete(g.decks, pid)
-}
-
-func (g *GameState) updateElectionState(pid PID) (pids []PID, err error) {
-	card := g.playerStates[pid]
-	oldSeason := g.election.CurrentSeason()
-	newSeason := g.election.HandleCardPlayed(pid, card)
-	if oldSeason == newSeason {
-		return pids, nil
-	}
-
-	switch {
-	case oldSeason == offSeason && newSeason == campaignSeason:
-		g.announce("Campaign season has begun!")
-		break
-	case oldSeason == campaignSeason && newSeason == votingSeason:
-		g.announce("Voting season has begun!")
-		for _, pid := range g.pids {
-			g.decks[pid].InsertCard(theVotingCard)
-		}
-		break
-	case oldSeason == votingSeason && newSeason == offSeason:
-		// If we went from voting season to the off season then all players were
-		// looking at the voting card. Pop it from every deck, announce the
-		// results, and the move clients to the next card.
-		for _, pid := range g.pids {
-			g.decks[pid].RemoveCard(theVotingCard)
-		}
-		winner := g.computeElectionWinner()
-		for _, pid := range g.pids {
-			if pid == winner {
-				g.decks[pid].InsertCardWithPriority(infoCard{"You won the election! Now get back to work."}, maxCardPriority)
-			} else {
-				g.decks[pid].InsertCardWithPriority(infoCard{"You lost the election. Now get back to to work."}, maxCardPriority)
-			}
-		}
-		g.announce("The offseason has begun!")
-		pids = g.pids
-		break
-	default:
-		return nil, fmt.Errorf("invalid transition from %s to %s", oldSeason, newSeason)
-	}
-
-	return pids, nil
 }
 
 func (g *GameState) debugDumpDecks() {
@@ -225,21 +126,15 @@ func (g *GameState) debugDumpDecks() {
 	}
 }
 
-func OnVotingCard(s playerState, _ votingCard) (next playerState) {
-	next = s
-	return checkPlayerState(next)
+func (g *GameState) DeckInsertAll(c CardRef) {
+	for _, pid := range g.pids {
+		g.decks[pid].InsertCard(c, g.cards.CardPriorityByType(c))
+	}
 }
-
-func OnAcceptActionCard(s playerState, c actionCard) (next playerState) {
-	next.Wealth = s.Wealth + c.AccWealthEffect
-	next.Health = s.Health + c.AccHealthEffect
-	next.Stability = s.Stability + c.AccStabilityEffect
-	return checkPlayerState(next)
-}
-
-func OnRejectActionCard(s playerState, c actionCard) (next playerState) {
-	next.Wealth = s.Wealth + c.RejWealthEffect
-	next.Health = s.Health + c.RejHealthEffect
-	next.Stability = s.Stability + c.RejStabilityEffect
-	return checkPlayerState(next)
-}
+func (g *GameState) DeckInsert(pid PID, card CardRef)          {}
+func (g *GameState) DeckRemove(pid PID, card CardRef)          {}
+func (g *GameState) DeckShuffle(pid PID)                       {}
+func (g *GameState) SocietyCrumble(pid PID)                    {}
+func (g *GameState) SocietyUpdateHealth(pid PID, delta int)    {}
+func (g *GameState) SocietyUpdateWealth(pid PID, delta int)    {}
+func (g *GameState) SocietyUpdateStability(pid PID, delta int) {}

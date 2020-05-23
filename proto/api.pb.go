@@ -4,7 +4,7 @@
 // 	protoc        v3.11.4
 // source: api.proto
 
-package couchcampaign
+package proto
 
 import (
 	proto "github.com/golang/protobuf/proto"
@@ -211,7 +211,7 @@ type PlayerState struct {
 	//	*PlayerState_ActionCard
 	//	*PlayerState_InfoCard
 	//	*PlayerState_VotingCard
-	Card isPlayerState_Card `protobuf_oneof:"card"`
+	Card IsPlayerState_Card `protobuf_oneof:"card"`
 }
 
 func (x *PlayerState) Reset() {
@@ -274,7 +274,7 @@ func (x *PlayerState) GetStability() int32 {
 	return 0
 }
 
-func (m *PlayerState) GetCard() isPlayerState_Card {
+func (m *PlayerState) GetCard() IsPlayerState_Card {
 	if m != nil {
 		return m.Card
 	}
@@ -302,8 +302,8 @@ func (x *PlayerState) GetVotingCard() *VotingCard {
 	return nil
 }
 
-type isPlayerState_Card interface {
-	isPlayerState_Card()
+type IsPlayerState_Card interface {
+	IsPlayerState_Card()
 }
 
 type PlayerState_ActionCard struct {
@@ -318,11 +318,11 @@ type PlayerState_VotingCard struct {
 	VotingCard *VotingCard `protobuf:"bytes,7,opt,name=voting_card,json=votingCard,proto3,oneof"`
 }
 
-func (*PlayerState_ActionCard) isPlayerState_Card() {}
+func (*PlayerState_ActionCard) IsPlayerState_Card() {}
 
-func (*PlayerState_InfoCard) isPlayerState_Card() {}
+func (*PlayerState_InfoCard) IsPlayerState_Card() {}
 
-func (*PlayerState_VotingCard) isPlayerState_Card() {}
+func (*PlayerState_VotingCard) IsPlayerState_Card() {}
 
 type ActionCard struct {
 	state         protoimpl.MessageState

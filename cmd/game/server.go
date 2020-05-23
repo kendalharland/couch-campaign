@@ -12,6 +12,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+
+	pb "couchampaign/proto"
 )
 
 var upgrader = websocket.Upgrader{} // use default options
@@ -76,7 +78,7 @@ func (s *GameServer) start(w http.ResponseWriter, r *http.Request) {
 	log.Println("game started")
 	couchcampaign.Respond(w, http.StatusOK, "1")
 
-	message := couchcampaign.Message{Content: &couchcampaign.Message_SessionState{SessionState: couchcampaign.SessionState_RUNNING}}
+	message := pb.Message{Content: &pb.Message_SessionState{SessionState: pb.SessionState_RUNNING}}
 	payload, err := proto.Marshal(&message)
 	if err != nil {
 		couchcampaign.RespondWithError(w, err)

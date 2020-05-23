@@ -1,4 +1,4 @@
-package couchcampaign
+package cardgame
 
 import (
 	"fmt"
@@ -8,15 +8,15 @@ import (
 
 // ClientJob is a unit of work for the ClientDriver.
 type ClientJob struct {
-	PID   PID
-	Card  Card
-	Stats playerState
+	PID           PID
+	State         []byte
+	RequiresInput bool
 }
 
 // ClientMessage represents game input from the client.
 type ClientMessage struct {
 	PID   PID
-	Card  Card
+	Card  CardRef
 	Input ClientInput
 }
 
@@ -30,14 +30,22 @@ func (e ClientError) Error() string {
 	return e.err.Error()
 }
 
+// ClientInput is a signal from the client to the game server.
 type ClientInput int
 
 // ClientInput constants.
 const (
-	NoInput ClientInput = iota
-	DismissInfoCardInput
-	AcceptActionCardInput
-	RejectActionCardInput
+	// FailedInput is sent when an error occurred either displaying a card or receiving input.
+	FailedInput ClientInput = iota
+
+	// NoINput is sent when a card was displayed but input was not required.
+	NoInput
+
+	// AcceptCardInput is sent when the client accepts a card.
+	AcceptCardInput
+
+	// AcceptCardInput is sent when the client rejects a card.
+	RejectCardInput
 )
 
 // ClientWorker implements a server-side go-routine that communicates with a single client.
@@ -70,7 +78,6 @@ func (w *ClientWorker) Run(jobs <-chan ClientJob, messages chan<- ClientMessage,
 		} else if input != NoInput {
 			messages <- ClientMessage{
 				PID:   w.PID,
-				Card:  job.Card,
 				Input: input,
 			}
 		}
@@ -82,28 +89,23 @@ func (w *ClientWorker) Run(jobs <-chan ClientJob, messages chan<- ClientMessage,
 // Returns the player's input action, or the empty string if the job did not
 // not require any input.
 func (w *ClientWorker) do(job ClientJob) (ClientInput, error) {
-	if err := w.driver.sendState(job.Card, job.Stats); err != nil {
-		return -1, err
+	if err := w.driver.sendState(job.State); err != nil {
+		return FailedInput, err
 	}
-	if !cardRequiresInput(job.Card) {
-		return -1, nil
+	if !job.RequiresInput {
+		return NoInput, nil
 	}
 	input, err := w.driver.getInput()
 	if err != nil {
-		return -1, err
+		return FailedInput, err
 	}
 
+	// TODO: Replace this in favor of the client sending the input code directly.
 	switch input {
 	case "accept":
-		if _, ok := job.Card.(actionCard); ok {
-			return AcceptActionCardInput, nil
-		}
-		return DismissInfoCardInput, nil
+		return AcceptCardInput, nil
 	case "reject":
-		if _, ok := job.Card.(actionCard); ok {
-			return RejectActionCardInput, nil
-		}
-		return DismissInfoCardInput, nil
+		return RejectCardInput, nil
 	default:
 		return NoInput, fmt.Errorf("invalid input: %q", input)
 	}
@@ -125,12 +127,8 @@ func (d *clientDriver) getInput() (string, error) {
 	return string(input), nil
 }
 
-func (d *clientDriver) sendState(c Card, s playerState) error {
-	m, err := renderCard(c, s)
-	if err != nil {
-		return fmt.Errorf("renderCard: %v", err)
-	}
-	if err := d.ws.Write(m); err != nil {
+func (d *clientDriver) sendState(state []byte) error {
+	if err := d.ws.Write(state); err != nil {
 		return err
 	}
 	return nil

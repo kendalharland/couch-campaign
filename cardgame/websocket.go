@@ -1,4 +1,4 @@
-package couchcampaign
+package cardgame
 
 import (
 	"sync"
