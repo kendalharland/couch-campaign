@@ -2,18 +2,16 @@ package couchcampaign
 
 // Global story data.
 //
-// These are initialized at startup and shoul not be modified while the game is
+// These are initialized at startup and should not be modified while the game is
 // running.
 var (
 	stories = newStoryRegistry()
 	cards   = map[CardRef]Card{
 		// Core cards.
 		"WaitingForVotes": {
-			ID:   "WaitingForVotes",
-			Text: "Waiting for votes...",
-			OnShow: []cardEffect{
-				SetIsVotingEffect{},
-			},
+			ID:     "WaitingForVotes",
+			Text:   "Waiting for votes...",
+			OnShow: []cardEffect{},
 		},
 	}
 )

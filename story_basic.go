@@ -11,12 +11,10 @@ var storyBasic = story{
 			AcceptText: "Quarantine the ship in the harbor.",
 			OnAccept: []cardEffect{
 				UpdateSocietyStatsEffect{-2, 2, 0},
-				UpdateActionCountEffect{},
 			},
 			RejectText: "Have them deliver their goods, then see them to the nearest hospital immediately.",
 			OnReject: []cardEffect{
 				UpdateSocietyStatsEffect{-3, -2, 0},
-				UpdateActionCountEffect{},
 			},
 		},
 		{
@@ -26,12 +24,10 @@ var storyBasic = story{
 			AcceptText: "Our coffers have been running a little dry...",
 			OnAccept: []cardEffect{
 				UpdateSocietyStatsEffect{3, -2, -1},
-				UpdateActionCountEffect{},
 			},
 			RejectText: "I won't sacrifice the public health for financial gain.",
 			OnReject: []cardEffect{
 				UpdateSocietyStatsEffect{1, 1, 0},
-				UpdateActionCountEffect{},
 			},
 		},
 		// Recruiting cards.
@@ -43,12 +39,9 @@ var storyBasic = story{
 			OnAccept: []cardEffect{
 				UpdateSocietyStatsEffect{0, 0, 2},
 				AddStoryEffect{storyTreasurer.ref},
-				UpdateActionCountEffect{},
 			},
 			RejectText: "I can spend the people's money however I see fit!",
-			OnReject: []cardEffect{
-				UpdateActionCountEffect{},
-			},
+			OnReject:   []cardEffect{},
 		},
 	},
 }

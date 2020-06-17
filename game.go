@@ -7,6 +7,8 @@ import (
 	"couchcampaign/multiplayer"
 
 	"google.golang.org/protobuf/proto"
+
+	couchcampaignpb "couchcampaign/proto"
 )
 
 // Game is an instance of a couchcampaign game.
@@ -33,20 +35,21 @@ func (g *game) HandleMessage(m multiplayer.Message) ([]multiplayer.Message, erro
 		return nil, fmt.Errorf("parseInput: %w", err)
 	}
 
-	playerStates, err := g.state.HandleInput(m.CID, input)
+	societies, err := g.state.HandleInput(m.CID, input)
 	if err != nil {
 		return nil, fmt.Errorf("HandleUpdate: %w", err)
 	}
 
-	messages := make([]multiplayer.Message, 0, len(playerStates))
-	for _, ps := range playerStates {
-		data, err := proto.Marshal(&ps)
+	messages := make([]multiplayer.Message, 0, len(societies))
+	for cid, s := range societies {
+		ps := societyToPlayerState(cid, s)
+		psData, err := proto.Marshal(&ps)
 		if err != nil {
 			return nil, err
 		}
 		messages = append(messages, multiplayer.Message{
 			CID:  ps.Id,
-			Data: data,
+			Data: psData,
 		})
 	}
 	return messages, nil
@@ -72,5 +75,23 @@ func parseInput(input []byte) (Input, error) {
 		return InputCardShown, nil
 	default:
 		return InputErr, fmt.Errorf("invalid input: %q", value)
+	}
+}
+
+func societyToPlayerState(cid multiplayer.CID, society SocietyState) couchcampaignpb.PlayerState {
+	card := getCard(society.CardRef)
+	return couchcampaignpb.PlayerState{
+		Id:                 cid,
+		Leader:             society.Leader,
+		LeaderTimeInOffice: int32(society.LeaderTimeInOffice),
+		Wealth:             int32(society.Wealth),
+		Health:             int32(society.Health),
+		Stability:          int32(society.Stability),
+		Card: &couchcampaignpb.Card{
+			Text:       card.Text,
+			Speaker:    card.Speaker,
+			AcceptText: card.AcceptText,
+			RejectText: card.RejectText,
+		},
 	}
 }

@@ -3,7 +3,6 @@ import 'package:couchcampaign/src/clients.dart';
 import 'package:couchcampaign/src/session.dart';
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter/material.dart' as material;
-import 'package:flutter/material.dart';
 import 'package:xhttp/xhttp.dart' as http;
 
 class MainMenuScreen extends StatelessWidget {
@@ -129,24 +128,10 @@ class PlayerStateView extends StatelessWidget {
       ),
     );
 
-    Widget body;
-    switch (state.whichCard()) {
-      case PlayerState_Card.actionCard:
-        body = ActionCardBody(state.actionCard, onInput);
-        break;
-      case PlayerState_Card.infoCard:
-        body = InfoCardBody(state.infoCard, onInput);
-        break;
-      case PlayerState_Card.votingCard:
-        body = VotingCardBody(state.votingCard);
-        onInput("got the voting card");
-        break;
-      default:
-        body = Text('Unknown card type ${state.whichCard()}');
-    }
-    body = Container(
+    final card = CardBody(state.card, onInput);
+    final body = Container(
       decoration: BoxDecoration(color: bodyColor),
-      child: Padding(padding: EdgeInsets.all(24), child: body),
+      child: Padding(padding: EdgeInsets.all(24), child: card),
     );
 
     final footer = Container(
@@ -238,54 +223,27 @@ class PlayerStats extends StatelessWidget {
   }
 }
 
-class ActionCardBody extends StatelessWidget {
-  const ActionCardBody(this.card, this.onDismiss);
+class CardBody extends StatelessWidget {
+  const CardBody(this.card, this.onDismiss);
 
-  final ActionCard card;
+  final Card card;
   final ValueSetter<String> onDismiss;
 
   @override
   Widget build(BuildContext context) {
     final style = TextStyle(fontSize: 18);
-    final content = Center(child: Text(card.content, style: style));
-    final advisor = Center(child: Text(card.advisor, style: style));
+    final text = Center(child: Text(card.text, style: style));
+    final speaker = Center(child: Text(card.speaker, style: style));
     final cardWidget = Center(child: material.Card(child: Text('picture')));
     return DismissibleCardView(
-      header: content,
+      header: text,
       card: cardWidget,
-      footer: advisor,
+      footer: speaker,
       onDismiss: onDismiss,
     );
   }
 }
 
-class InfoCardBody extends StatelessWidget {
-  const InfoCardBody(this.card, this.onDismiss);
-
-  final InfoCard card;
-  final ValueSetter<String> onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    return DismissibleCardView(
-      header: Center(child: Text("")),
-      card: Center(child: Text(card.text)),
-      footer: Center(child: Text("")),
-      onDismiss: onDismiss,
-    );
-  }
-}
-
-class VotingCardBody extends StatelessWidget {
-  const VotingCardBody(this.card);
-
-  final VotingCard card;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text('unimplemented: voting card');
-  }
-}
 
 class DismissibleCardView extends StatelessWidget {
   const DismissibleCardView({
