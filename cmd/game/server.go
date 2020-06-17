@@ -23,8 +23,8 @@ func init() {
 }
 
 type GameServer struct {
-	game  *multiplayer.Server
-	conns map[multiplayer.CID]*websocket.Conn
+	isGameRunning bool
+	conns         map[multiplayer.CID]*websocket.Conn
 
 	mu sync.Mutex
 }
@@ -42,45 +42,33 @@ func (s *GameServer) InstallHandlers(r *mux.Router) {
 	r.HandleFunc("/socket", s.socket)
 }
 
-func (s *GameServer) ensureNotStarted() error {
-	if s.game != nil {
-		return errors.New("game has already started")
-	}
-	return nil
-}
-
-func (s *GameServer) status(w http.ResponseWriter, r *http.Request) {
-	couchcampaign.Respond(w, http.StatusOK, "game is running")
-}
-
 func (s *GameServer) start(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	defer r.Body.Close()
 
-	if err := s.ensureNotStarted(); err != nil {
-		couchcampaign.RespondWithError(w, err)
+	if s.isGameRunning {
+		couchcampaign.RespondWithError(w, errors.New("game is already running"))
+		return
 	}
 
-	clients := make(map[multiplayer.CID]*multiplayer.Client)
-	cids := make([]multiplayer.CID, 0, len(s.conns))
+	server := multiplayer.NewServer()
+	game := couchcampaign.NewGame()
 	for cid, conn := range s.conns {
-		clients[cid] = multiplayer.NewClient(cid, conn)
-		cids = append(cids, cid)
+		server.AddClient(cid, multiplayer.NewClient(cid, conn))
+		game.AddPlayer(cid)
 	}
 
-	server := multiplayer.NewServer(clients)
-	game := couchcampaign.NewGameWithCIDs(cids)
 	go server.Run(game)
-
-	log.Println("game started")
 	couchcampaign.Respond(w, http.StatusOK, "1")
 
 	message := pb.Message{Content: &pb.Message_SessionState{SessionState: pb.SessionState_RUNNING}}
 	payload, err := proto.Marshal(&message)
 	if err != nil {
 		couchcampaign.RespondWithError(w, err)
+		return
 	}
+
 	for _, conn := range s.conns {
 		if err := conn.WriteMessage(websocket.BinaryMessage, payload); err != nil {
 			log.Println(err)
@@ -93,13 +81,13 @@ func (s *GameServer) connect(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 	defer r.Body.Close()
 
-	if err := s.ensureNotStarted(); err != nil {
-		couchcampaign.RespondWithError(w, err)
+	if s.isGameRunning {
+		couchcampaign.RespondWithError(w, errors.New("game is already running"))
+		return
 	}
 
-	id := multiplayer.CID("TODO")
+	id := multiplayer.CID("TODO_let_the_client_set_this")
 
-	// Upgrade to a websocket connection.
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		couchcampaign.RespondWithError(w, err)
@@ -118,10 +106,23 @@ func (s *GameServer) connect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *GameServer) socket(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	defer r.Body.Close()
+
+	if s.isGameRunning {
+		couchcampaign.RespondWithError(w, errors.New("game is already running"))
+		return
+	}
+
 	socketAddr := url.URL{
 		Scheme: "ws",
 		Host:   r.Host,
 		Path:   "connect",
 	}
 	couchcampaign.Respond(w, http.StatusOK, socketAddr.String())
+}
+
+func (s *GameServer) status(w http.ResponseWriter, r *http.Request) {
+	couchcampaign.Respond(w, http.StatusOK, "game is running")
 }

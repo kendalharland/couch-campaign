@@ -27,23 +27,17 @@ type Server struct {
 }
 
 // NewServer creates a new Server with the given clients.
-func NewServer(clients map[CID]*Client) *Server {
-	pids := make([]CID, 0, len(clients))
-	for pid := range clients {
-		pids = append(pids, pid)
-	}
-
-	s := &Server{
-		clients:          clients,
+func NewServer() *Server {
+	return &Server{
 		outgoingMessages: make(map[CID]chan Message),
-		incomingMessages: make(chan Message, len(clients)),
-		clientErrors:     make(chan ClientError, len(clients)),
+		incomingMessages: make(chan Message),
+		clientErrors:     make(chan ClientError),
 	}
+}
 
-	for _, pid := range pids {
-		s.outgoingMessages[pid] = make(chan Message, 2)
-	}
-	return s
+func (s *Server) AddClient(cid CID, client *Client) {
+	s.clients[cid] = client
+	s.outgoingMessages[cid] = make(chan Message, 2)
 }
 
 // Run starts the game loop.
