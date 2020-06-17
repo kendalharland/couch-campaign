@@ -18,28 +18,22 @@ message Message {
 message GameInfo { string id = 1; }
 
 message PlayerState {
-  string leader = 1;
-  int32 health = 2;
-  int32 wealth = 3;
-  int32 stability = 4;
-
-  oneof card {
-    ActionCard action_card = 5;
-    InfoCard info_card = 6;
-    VotingCard voting_card = 7;
-  }
+  string id = 1;
+  string leader = 2;
+  int32 leader_time_in_office = 3;
+  int32 health = 4;
+  int32 wealth = 5;
+  int32 stability = 6;
+  Card card = 7;
 }
 
-message ActionCard {
-  string content = 1;
-  string advisor = 2;
-  string acceptText = 3;
-  string rejectText = 4;
+message Card {
+  string text = 1;
+  string speaker = 2;
+  string accept_text = 3;
+  string reject_text = 4;
+  // TODO: image.
 }
-
-message InfoCard { string text = 1; }
-
-message VotingCard { string text = 1; }
 
 message CreateGameRequest {}
 

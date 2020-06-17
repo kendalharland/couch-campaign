@@ -34,40 +34,23 @@ const GameInfo$json = const {
 const PlayerState$json = const {
   '1': 'PlayerState',
   '2': const [
-    const {'1': 'leader', '3': 1, '4': 1, '5': 9, '10': 'leader'},
-    const {'1': 'health', '3': 2, '4': 1, '5': 5, '10': 'health'},
-    const {'1': 'wealth', '3': 3, '4': 1, '5': 5, '10': 'wealth'},
-    const {'1': 'stability', '3': 4, '4': 1, '5': 5, '10': 'stability'},
-    const {'1': 'action_card', '3': 5, '4': 1, '5': 11, '6': '.couchcampaign.ActionCard', '9': 0, '10': 'actionCard'},
-    const {'1': 'info_card', '3': 6, '4': 1, '5': 11, '6': '.couchcampaign.InfoCard', '9': 0, '10': 'infoCard'},
-    const {'1': 'voting_card', '3': 7, '4': 1, '5': 11, '6': '.couchcampaign.VotingCard', '9': 0, '10': 'votingCard'},
-  ],
-  '8': const [
-    const {'1': 'card'},
+    const {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    const {'1': 'leader', '3': 2, '4': 1, '5': 9, '10': 'leader'},
+    const {'1': 'leader_time_in_office', '3': 3, '4': 1, '5': 5, '10': 'leaderTimeInOffice'},
+    const {'1': 'health', '3': 4, '4': 1, '5': 5, '10': 'health'},
+    const {'1': 'wealth', '3': 5, '4': 1, '5': 5, '10': 'wealth'},
+    const {'1': 'stability', '3': 6, '4': 1, '5': 5, '10': 'stability'},
+    const {'1': 'card', '3': 7, '4': 1, '5': 11, '6': '.couchcampaign.Card', '10': 'card'},
   ],
 };
 
-const ActionCard$json = const {
-  '1': 'ActionCard',
-  '2': const [
-    const {'1': 'content', '3': 1, '4': 1, '5': 9, '10': 'content'},
-    const {'1': 'advisor', '3': 2, '4': 1, '5': 9, '10': 'advisor'},
-    const {'1': 'acceptText', '3': 3, '4': 1, '5': 9, '10': 'acceptText'},
-    const {'1': 'rejectText', '3': 4, '4': 1, '5': 9, '10': 'rejectText'},
-  ],
-};
-
-const InfoCard$json = const {
-  '1': 'InfoCard',
+const Card$json = const {
+  '1': 'Card',
   '2': const [
     const {'1': 'text', '3': 1, '4': 1, '5': 9, '10': 'text'},
-  ],
-};
-
-const VotingCard$json = const {
-  '1': 'VotingCard',
-  '2': const [
-    const {'1': 'text', '3': 1, '4': 1, '5': 9, '10': 'text'},
+    const {'1': 'speaker', '3': 2, '4': 1, '5': 9, '10': 'speaker'},
+    const {'1': 'accept_text', '3': 3, '4': 1, '5': 9, '10': 'acceptText'},
+    const {'1': 'reject_text', '3': 4, '4': 1, '5': 9, '10': 'rejectText'},
   ],
 };
 

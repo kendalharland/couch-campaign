@@ -2,6 +2,7 @@ package couchcampaign
 
 import (
 	"couchcampaign/multiplayer"
+	"couchcampaign/proto"
 	"fmt"
 )
 
@@ -27,8 +28,13 @@ func newGameState(cids []multiplayer.CID) *gameState {
 	return g
 }
 
-func (g *gameState) HandleInput(cid multiplayer.CID, input Input) error {
+func (g *gameState) HandleInput(cid multiplayer.CID, input Input) ([]proto.PlayerState, error) {
 	card := getCard(g.societies[cid].CardRef)
+
+	oldSocieties := make(map[multiplayer.CID]SocietyState)
+	for cid := range g.societies {
+		oldSocieties[cid] = g.societies[cid]
+	}
 
 	switch input {
 	case InputCardShown:
@@ -38,10 +44,36 @@ func (g *gameState) HandleInput(cid multiplayer.CID, input Input) error {
 	case InputCardRejected:
 		g.applyCardEffects(cid, card.OnReject)
 	default:
-		return fmt.Errorf("invalid input: %v", input)
+		return nil, fmt.Errorf("invalid input: %v", input)
 	}
 
-	return nil
+	var newPlayerStates []proto.PlayerState
+	for cid := range oldSocieties {
+		if oldSocieties[cid] != g.societies[cid] {
+			newPlayerStates = append(newPlayerStates, g.getPlayerState(cid))
+		}
+	}
+
+	return newPlayerStates, nil
+}
+
+func (g *gameState) getPlayerState(cid multiplayer.CID) proto.PlayerState {
+	society := g.societies[cid]
+	card := getCard(society.CardRef)
+	return proto.PlayerState{
+		Id:                 cid,
+		Leader:             society.Leader,
+		LeaderTimeInOffice: int32(society.LeaderTimeInOffice),
+		Wealth:             int32(society.Wealth),
+		Health:             int32(society.Health),
+		Stability:          int32(society.Stability),
+		Card: &proto.Card{
+			Text:       card.Text,
+			Speaker:    card.Speaker,
+			AcceptText: card.AcceptText,
+			RejectText: card.RejectText,
+		},
+	}
 }
 
 func (g *gameState) applyCardEffects(cid multiplayer.CID, effects []cardEffect) {

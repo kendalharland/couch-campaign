@@ -5,7 +5,7 @@ import (
 )
 
 // CID is a type alias for a client ID.
-type CID string
+type CID = string
 
 // Message represents a message sent between the server and the client.
 type Message struct {

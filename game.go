@@ -1,9 +1,12 @@
 package couchcampaign
 
 import (
-	"couchcampaign/multiplayer"
 	"fmt"
 	"log"
+
+	"couchcampaign/multiplayer"
+
+	"google.golang.org/protobuf/proto"
 )
 
 // Game is an instance of a couchcampaign game.
@@ -24,12 +27,29 @@ func NewGameWithCIDs(cids []multiplayer.CID) multiplayer.Game {
 }
 
 // HandleMessage handles a client message.
-func (g *game) HandleMessage(m multiplayer.Message) error {
+func (g *game) HandleMessage(m multiplayer.Message) ([]multiplayer.Message, error) {
 	input, err := parseInput(m.Data)
 	if err != nil {
-		return fmt.Errorf("parseInput: %w", err)
+		return nil, fmt.Errorf("parseInput: %w", err)
 	}
-	return g.state.HandleInput(m.CID, input)
+
+	playerStates, err := g.state.HandleInput(m.CID, input)
+	if err != nil {
+		return nil, fmt.Errorf("HandleUpdate: %w", err)
+	}
+
+	messages := make([]multiplayer.Message, 0, len(playerStates))
+	for _, ps := range playerStates {
+		data, err := proto.Marshal(&ps)
+		if err != nil {
+			return nil, err
+		}
+		messages = append(messages, multiplayer.Message{
+			CID:  ps.Id,
+			Data: data,
+		})
+	}
+	return messages, nil
 }
 
 // HandleError handles a client error.

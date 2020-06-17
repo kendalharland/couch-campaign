@@ -50,15 +50,19 @@ func NewServer(clients map[CID]*Client) *Server {
 func (s *Server) Run(g Game) {
 	defer s.shutdown()
 
-	for pid, client := range s.clients {
-		go client.Run(s.outgoingMessages[pid], s.incomingMessages, s.clientErrors)
+	for cid, client := range s.clients {
+		go client.Run(s.outgoingMessages[cid], s.incomingMessages, s.clientErrors)
 	}
 
 	for {
 		select {
 		case message := <-s.incomingMessages:
-			if err := g.HandleMessage(message); err != nil {
+			responses, err := g.HandleMessage(message)
+			if err != nil {
 				log.Fatal(err)
+			}
+			for _, r := range responses {
+				s.outgoingMessages[r.CID] <- r
 			}
 		case err := <-s.clientErrors:
 			if err := g.HandleError(err); err != nil {
