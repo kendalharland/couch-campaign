@@ -1,55 +1,77 @@
 package couchcampaign
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
 	"couchcampaign/multiplayer"
+	couchcampaignpb "couchcampaign/proto"
 
 	"google.golang.org/protobuf/proto"
-
-	couchcampaignpb "couchcampaign/proto"
 )
 
-// Game is an instance of a couchcampaign game.
-//
-// It implements the game's presentation layer.
+func NewGame() *game {
+	return &game{
+		ctx: &gameContext{
+			players: make(map[string]*PlayerState),
+		},
+	}
+}
+
 type game struct {
-	state *gameState
+	isStarted bool
+	ctx       *gameContext
+	scripts   *scriptManager
 }
 
-// NewGame returns a new couchcampaign Game.
-func NewGame(state *gameState) multiplayer.Game {
-	return &game{state: state}
+func (g *game) AddPlayer(cid multiplayer.CID) error {
+	if g.isStarted {
+		return errors.New("game is already started")
+	}
+	g.ctx.AddPlayer(string(cid))
+	return nil
 }
 
-func NewGameWithCIDs(cids []multiplayer.CID) multiplayer.Game {
-	state := newGameState(cids)
-	return NewGame(state)
+func (g *game) Start() error {
+	if g.isStarted {
+		return errors.New("game is already started")
+	}
+	g.scripts = newScriptManager(g.ctx)
+	if err := g.scripts.LoadMainScript("/home/kjharland/code/couch-campaign/scripts/main.star"); err != nil {
+		return err
+	}
+	g.isStarted = true
+	return nil
 }
 
-// HandleMessage handles a client message.
 func (g *game) HandleMessage(m multiplayer.Message) ([]multiplayer.Message, error) {
+	if !g.isStarted {
+		return nil, errors.New("game is not started")
+	}
+
 	input, err := parseInput(m.Data)
 	if err != nil {
 		return nil, fmt.Errorf("parseInput: %w", err)
 	}
 
-	societies, err := g.state.HandleInput(m.CID, input)
-	if err != nil {
-		return nil, fmt.Errorf("HandleUpdate: %w", err)
+	oldPlayerStates := g.ctx.SnapshotPlayerStates()
+	if err := g.scripts.HandleInput(m.CID, input); err != nil {
+		return nil, fmt.Errorf("HandleInput: %w", err)
 	}
 
-	messages := make([]multiplayer.Message, 0, len(societies))
-	for cid, s := range societies {
-		ps := societyToPlayerState(cid, s)
-		psData, err := proto.Marshal(&ps)
+	var messages []multiplayer.Message
+	for id, state := range g.ctx.SnapshotPlayerStates() {
+		if oldPlayerStates[id] == state {
+			continue
+		}
+		data, err := proto.Marshal(playerStateToProto(state))
 		if err != nil {
 			return nil, err
 		}
 		messages = append(messages, multiplayer.Message{
-			CID:  ps.Id,
-			Data: psData,
+			CID:  id,
+			Data: data,
 		})
 	}
 	return messages, nil
@@ -57,6 +79,9 @@ func (g *game) HandleMessage(m multiplayer.Message) ([]multiplayer.Message, erro
 
 // HandleError handles a client error.
 func (g *game) HandleError(e multiplayer.ClientError) error {
+	if !g.isStarted {
+		return errors.New("game is not started")
+	}
 	log.Printf("error: %v: %v", e.CID, e.Err)
 	return nil
 }
@@ -78,20 +103,19 @@ func parseInput(input []byte) (Input, error) {
 	}
 }
 
-func societyToPlayerState(cid multiplayer.CID, society SocietyState) couchcampaignpb.PlayerState {
-	card := getCard(society.CardRef)
-	return couchcampaignpb.PlayerState{
-		Id:                 cid,
-		Leader:             society.Leader,
-		LeaderTimeInOffice: int32(society.LeaderTimeInOffice),
-		Wealth:             int32(society.Wealth),
-		Health:             int32(society.Health),
-		Stability:          int32(society.Stability),
+func playerStateToProto(ps PlayerState) *couchcampaignpb.PlayerState {
+	return &couchcampaignpb.PlayerState{
+		Id:                 ps.ID,
+		Leader:             ps.Leader,
+		LeaderTimeInOffice: int32(ps.LeaderTimeInOffice),
+		Wealth:             int32(ps.Wealth),
+		Health:             int32(ps.Health),
+		Stability:          int32(ps.Stability),
 		Card: &couchcampaignpb.Card{
-			Text:       card.Text,
-			Speaker:    card.Speaker,
-			AcceptText: card.AcceptText,
-			RejectText: card.RejectText,
+			Text:       ps.CardText,
+			Speaker:    ps.CardSpeaker,
+			AcceptText: ps.CardAcceptText,
+			RejectText: ps.CardRejectText,
 		},
 	}
 }
