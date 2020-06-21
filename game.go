@@ -18,12 +18,14 @@ func NewGame() *game {
 		ctx: &gameContext{
 			players: make(map[string]*PlayerState),
 		},
+		outputs: make(chan multiplayer.Message, 2),
 	}
 }
 
 type game struct {
-	isStarted bool
 	ctx       *gameContext
+	outputs   chan multiplayer.Message
+	isStarted bool
 	scripts   *scriptManager
 }
 
@@ -43,40 +45,64 @@ func (g *game) Start() error {
 	if err := g.scripts.LoadMainScript(devScriptsPath); err != nil {
 		return err
 	}
+
+	sessionStartedMessage, err := proto.Marshal(&couchcampaignpb.Message{
+		Content: &couchcampaignpb.Message_SessionState{
+			SessionState: couchcampaignpb.SessionState_RUNNING,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	for id, state := range g.ctx.SnapshotPlayerStates() {
+		playerStateMessage, err := proto.Marshal(playerStateToMessageProto(state))
+		if err != nil {
+			return err
+		}
+		// Alert the client that the session is now running.
+		g.outputs <- multiplayer.Message{CID: id, Data: sessionStartedMessage, SkipResponse: true}
+
+		// Send the client's initial state.
+		g.outputs <- multiplayer.Message{CID: id, Data: playerStateMessage}
+	}
+
 	g.isStarted = true
 	return nil
 }
 
-func (g *game) HandleMessage(m multiplayer.Message) ([]multiplayer.Message, error) {
+func (g *game) Stop() error { return nil }
+
+func (g *game) HandleInput(cid multiplayer.CID, data []byte) error {
 	if !g.isStarted {
-		return nil, errors.New("game is not started")
+		return errors.New("game is not started")
 	}
 
-	input, err := parseInput(m.Data)
+	input, err := parseInput(data)
 	if err != nil {
-		return nil, fmt.Errorf("parseInput: %w", err)
+		return fmt.Errorf("parseInput: %w", err)
 	}
 
 	oldPlayerStates := g.ctx.SnapshotPlayerStates()
-	if err := g.scripts.HandleInput(m.CID, input); err != nil {
-		return nil, fmt.Errorf("HandleInput: %w", err)
+	if err := g.scripts.HandleInput(cid, input); err != nil {
+		return fmt.Errorf("HandleInput: %w", err)
 	}
 
-	var messages []multiplayer.Message
 	for id, state := range g.ctx.SnapshotPlayerStates() {
 		if oldPlayerStates[id] == state {
 			continue
 		}
-		data, err := proto.Marshal(playerStateToProto(state))
+		data, err := proto.Marshal(playerStateToMessageProto(state))
 		if err != nil {
-			return nil, err
+			return err
 		}
-		messages = append(messages, multiplayer.Message{
-			CID:  id,
-			Data: data,
-		})
+		g.outputs <- multiplayer.Message{CID: id, Data: data}
 	}
-	return messages, nil
+	return nil
+}
+
+func (g *game) Outputs() <-chan multiplayer.Message {
+	return g.outputs
 }
 
 // HandleError handles a client error.
@@ -87,9 +113,6 @@ func (g *game) HandleError(e multiplayer.ClientError) error {
 	log.Printf("error: %v: %v", e.CID, e.Err)
 	return nil
 }
-
-// Close disposes this game and all of its resources.
-func (g *game) Close() {}
 
 func parseInput(input []byte) (Input, error) {
 	value := string(input)
@@ -105,19 +128,27 @@ func parseInput(input []byte) (Input, error) {
 	}
 }
 
-func playerStateToProto(ps PlayerState) *couchcampaignpb.PlayerState {
+func playerStateToMessageProto(state PlayerState) *couchcampaignpb.Message {
+	return &couchcampaignpb.Message{
+		Content: &couchcampaignpb.Message_PlayerState{
+			PlayerState: playerStateToProto(state),
+		},
+	}
+}
+
+func playerStateToProto(state PlayerState) *couchcampaignpb.PlayerState {
 	return &couchcampaignpb.PlayerState{
-		Id:                 ps.ID,
-		Leader:             ps.Leader,
-		LeaderTimeInOffice: int32(ps.LeaderTimeInOffice),
-		Wealth:             int32(ps.Wealth),
-		Health:             int32(ps.Health),
-		Stability:          int32(ps.Stability),
+		Id:                 state.ID,
+		Leader:             state.Leader,
+		LeaderTimeInOffice: int32(state.LeaderTimeInOffice),
+		Wealth:             int32(state.Wealth),
+		Health:             int32(state.Health),
+		Stability:          int32(state.Stability),
 		Card: &couchcampaignpb.Card{
-			Text:       ps.CardText,
-			Speaker:    ps.CardSpeaker,
-			AcceptText: ps.CardAcceptText,
-			RejectText: ps.CardRejectText,
+			Text:       state.CardText,
+			Speaker:    state.CardSpeaker,
+			AcceptText: state.CardAcceptText,
+			RejectText: state.CardRejectText,
 		},
 	}
 }

@@ -2,7 +2,6 @@ package couchcampaign_test
 
 import (
 	"couchcampaign"
-	"couchcampaign/multiplayer"
 	"testing"
 )
 
@@ -14,13 +13,17 @@ func TestGame(t *testing.T) {
 		t.Fatalf("failed to start game: %v", err)
 	}
 
-	m := multiplayer.Message{CID: "p1", Data: []byte("accept")}
-	s, err := game.HandleMessage(m)
-	if err != nil {
-		t.Fatalf("failed to handle input %q: %v", m.Data, err)
+	input := "accept"
+
+	if err := game.HandleInput("p1", []byte(input)); err != nil {
+		t.Fatalf("failed to handle input %q: %v", input, err)
 	}
 
-	if len(s) == 0 {
-		t.Errorf("wanted player state change but got %v", s)
+	message := <-game.Outputs()
+	outputCID := message.CID
+	outputData := message.Data
+
+	if outputCID != "p1" || len(outputData) == 0 {
+		t.Errorf("unexpected message sent (cid=%q, data=%q)", outputCID, string(outputData))
 	}
 }

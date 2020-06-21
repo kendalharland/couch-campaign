@@ -29,6 +29,7 @@ type Server struct {
 // NewServer creates a new Server with the given clients.
 func NewServer() *Server {
 	return &Server{
+		clients:          make(map[CID]*Client),
 		outgoingMessages: make(map[CID]chan Message),
 		incomingMessages: make(chan Message),
 		clientErrors:     make(chan ClientError),
@@ -41,26 +42,31 @@ func (s *Server) AddClient(cid CID, client *Client) {
 }
 
 // Run starts the game loop.
-func (s *Server) Run(g Game) {
+func (s *Server) Run(g Game) error {
 	defer s.shutdown()
 
 	for cid, client := range s.clients {
+		if err := g.AddPlayer(cid); err != nil {
+			return err
+		}
 		go client.Run(s.outgoingMessages[cid], s.incomingMessages, s.clientErrors)
+	}
+
+	if err := g.Start(); err != nil {
+		return err
 	}
 
 	for {
 		select {
 		case message := <-s.incomingMessages:
-			responses, err := g.HandleMessage(message)
-			if err != nil {
+			if err := g.HandleInput(message.CID, message.Data); err != nil {
 				log.Fatal(err)
 			}
-			for _, r := range responses {
-				s.outgoingMessages[r.CID] <- r
-			}
+		case message := <-g.Outputs():
+			s.outgoingMessages[message.CID] <- message
 		case err := <-s.clientErrors:
 			if err := g.HandleError(err); err != nil {
-				log.Fatal(err)
+				return err
 			}
 		}
 	}

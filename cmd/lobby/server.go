@@ -142,7 +142,7 @@ func (s *LobbyServerImpl) CreateGame(ctx context.Context, m *pb.CreateGameReques
 	// Set the Cmd explicitly because exec.Command() cannot find binaries
 	// with a suffix on windows.
 	cmd := exec.Cmd{
-		Path:   "couchcampaign",
+		Path:   "bin/couchcampaign",
 		Args:   []string{"couchcampaign", "-port", fmt.Sprintf("%d", port)},
 		Env:    os.Environ(),
 		Stdout: os.Stdout,

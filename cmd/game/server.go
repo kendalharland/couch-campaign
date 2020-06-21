@@ -53,27 +53,12 @@ func (s *GameServer) start(w http.ResponseWriter, r *http.Request) {
 	}
 
 	server := multiplayer.NewServer()
-	game := couchcampaign.NewGame()
 	for cid, conn := range s.conns {
 		server.AddClient(cid, multiplayer.NewClient(cid, conn))
-		game.AddPlayer(cid)
 	}
 
-	go server.Run(game)
-	couchcampaign.Respond(w, http.StatusOK, "1")
-
-	message := pb.Message{Content: &pb.Message_SessionState{SessionState: pb.SessionState_RUNNING}}
-	payload, err := proto.Marshal(&message)
-	if err != nil {
-		couchcampaign.RespondWithError(w, err)
-		return
-	}
-
-	for _, conn := range s.conns {
-		if err := conn.WriteMessage(websocket.BinaryMessage, payload); err != nil {
-			log.Println(err)
-		}
-	}
+	go server.Run(couchcampaign.NewGame())
+	couchcampaign.Respond(w, http.StatusOK, "")
 }
 
 func (s *GameServer) connect(w http.ResponseWriter, r *http.Request) {
