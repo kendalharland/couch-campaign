@@ -1,4 +1,4 @@
-load("api.star", "api")
+load("//src/core.star", "core")
 
 ADD_HEALTH = "ADD_HEALTH"
 ADD_WEALTH = "ADD_WEALTH"
@@ -19,11 +19,11 @@ def _add_stability(amount):
 
 def _apply(player_id, effect):
     if effect.id == ADD_HEALTH:
-        api.add_player_health(player_id, effect.amount)
+        core.add_player_health(player_id, effect.amount)
     elif effect.id == ADD_WEALTH:
-        api.add_player_wealth(player_id, effect.amount)
+        core.add_player_wealth(player_id, effect.amount)
     elif effect.id == ADD_STABILITY:
-        api.add_player_stability(player_id, effect.amount)
+        core.add_player_stability(player_id, effect.amount)
 
 
 effect = struct(

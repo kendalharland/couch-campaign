@@ -3,11 +3,11 @@ def _add_player_health(id, amount):
 
 
 def _add_player_wealth(id, amount):
-    return _builtins_add_player_health(id, amount)
+    return _builtins_add_player_wealth(id, amount)
 
 
 def _add_player_stability(id, amount):
-    return _builtins_add_player_health(id, amount)
+    return _builtins_add_player_stability(id, amount)
 
 
 def _get_player_ids():
@@ -22,6 +22,7 @@ def _set_player_card_id(player_id, card_id):
     return _builtins_set_player_card_id(player_id, card_id)
 
 
+# The core API provided by the interpreter.
 core = struct(
     add_player_health=_add_player_health,
     add_player_wealth=_add_player_wealth,
