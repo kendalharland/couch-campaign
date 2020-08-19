@@ -18,6 +18,17 @@ import (
 
 var upgrader = websocket.Upgrader{} // use default options
 
+var (
+	errGameStarted      = errors.New("game is already started")
+	errNotEnoughPlayers = errors.New("game does not have enough players")
+	errMaxPlayers       = errors.New("game is full")
+)
+
+const (
+	minPlayerCount = 0
+	maxPlayerCount = 50
+)
+
 func init() {
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 }
@@ -48,7 +59,11 @@ func (s *GameServer) start(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if s.isGameRunning {
-		couchcampaign.RespondWithError(w, errors.New("game is already running"))
+		couchcampaign.RespondWithError(w, errGameStarted)
+		return
+	}
+	if len(s.conns) < minPlayerCount {
+		couchcampaign.RespondWithError(w, errNotEnoughPlayers)
 		return
 	}
 
@@ -67,17 +82,21 @@ func (s *GameServer) connect(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if s.isGameRunning {
-		couchcampaign.RespondWithError(w, errors.New("game is already running"))
+		couchcampaign.RespondWithError(w, errGameStarted)
 		return
 	}
-
-	id := multiplayer.CID("TODO_let_the_client_set_this")
+	if len(s.conns) >= maxPlayerCount {
+		couchcampaign.RespondWithError(w, errMaxPlayers)
+		return
+	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		couchcampaign.RespondWithError(w, err)
 		return
 	}
+
+	id := multiplayer.CID("TODO_let_the_client_set_this")
 	s.conns[id] = conn
 
 	message := pb.Message{Content: &pb.Message_SessionState{SessionState: pb.SessionState_LOBBY}}
@@ -91,15 +110,6 @@ func (s *GameServer) connect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *GameServer) socket(w http.ResponseWriter, r *http.Request) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	defer r.Body.Close()
-
-	if s.isGameRunning {
-		couchcampaign.RespondWithError(w, errors.New("game is already running"))
-		return
-	}
-
 	socketAddr := url.URL{
 		Scheme: "ws",
 		Host:   r.Host,
