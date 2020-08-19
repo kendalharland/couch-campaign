@@ -3,6 +3,7 @@ package main
 import (
 	"couchcampaign"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -119,5 +120,5 @@ func (s *GameServer) socket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *GameServer) status(w http.ResponseWriter, r *http.Request) {
-	couchcampaign.Respond(w, http.StatusOK, "game is running")
+	couchcampaign.Respond(w, http.StatusOK, fmt.Sprintf(`Players: (%d/%d)`, len(s.conns), maxPlayerCount))
 }
