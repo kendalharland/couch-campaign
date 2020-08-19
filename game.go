@@ -1,117 +1,54 @@
 package couchcampaign
 
 import (
-	"errors"
 	"fmt"
-	"log"
 
 	"couchcampaign/multiplayer"
 	couchcampaignpb "couchcampaign/proto"
+	"couchcampaign/starlarkgame"
 
 	"google.golang.org/protobuf/proto"
 )
 
-const devScriptsPath = "scripts/main.star"
+const scriptsFilename = "scripts/main.star"
 
-func NewGame() *game {
-	return &game{
-		ctx: &gameContext{
-			players: make(map[string]*PlayerState),
-		},
-		outputs: make(chan multiplayer.Message, 2),
-	}
+type Game struct {
+	g *starlarkgame.Game
 }
 
-type game struct {
-	ctx       *gameContext
-	outputs   chan multiplayer.Message
-	isStarted bool
-	scripts   *scriptManager
-}
-
-func (g *game) AddPlayer(cid multiplayer.CID) error {
-	if g.isStarted {
-		return errors.New("game is already started")
+func NewGame(playerIDs []multiplayer.CID) (*Game, error) {
+	ctx := starlarkgame.NewContext()
+	for _, id := range playerIDs {
+		ctx.AddPlayer(id)
 	}
-	g.ctx.AddPlayer(string(cid))
-	return nil
-}
-
-func (g *game) Start() error {
-	if g.isStarted {
-		return errors.New("game is already started")
-	}
-	g.scripts = newScriptManager(g.ctx)
-	if err := g.scripts.LoadMainScript(devScriptsPath); err != nil {
-		return err
-	}
-
-	sessionStartedMessage, err := proto.Marshal(&couchcampaignpb.Message{
-		Content: &couchcampaignpb.Message_SessionState{
-			SessionState: couchcampaignpb.SessionState_RUNNING,
-		},
-	})
+	g, err := starlarkgame.New(ctx, scriptsFilename)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	for id, state := range g.ctx.SnapshotPlayerStates() {
-		playerStateMessage, err := proto.Marshal(playerStateToMessageProto(state))
-		if err != nil {
-			return err
-		}
-		// Alert the client that the session is now running.
-		g.outputs <- multiplayer.Message{CID: id, Data: sessionStartedMessage, SkipResponse: true}
-
-		// Send the client's initial state.
-		g.outputs <- multiplayer.Message{CID: id, Data: playerStateMessage}
-	}
-
-	g.isStarted = true
-	return nil
+	return &Game{g}, nil
 }
 
-func (g *game) Stop() error { return nil }
-
-func (g *game) HandleInput(cid multiplayer.CID, data []byte) error {
-	if !g.isStarted {
-		return errors.New("game is not started")
-	}
-
+func (g *Game) HandleInput(cid multiplayer.CID, data []byte) error {
 	input, err := parseInput(data)
 	if err != nil {
 		return fmt.Errorf("parseInput: %w", err)
 	}
-
-	oldPlayerStates := g.ctx.SnapshotPlayerStates()
-	if err := g.scripts.HandleInput(cid, input); err != nil {
-		return fmt.Errorf("HandleInput: %w", err)
-	}
-
-	for id, state := range g.ctx.SnapshotPlayerStates() {
-		if oldPlayerStates[id] == state {
-			continue
-		}
-		data, err := proto.Marshal(playerStateToMessageProto(state))
-		if err != nil {
-			return err
-		}
-		g.outputs <- multiplayer.Message{CID: id, Data: data}
+	if err := g.g.HandleInput(cid, string(input)); err != nil {
+		return fmt.Errorf("HandleInput(%v, %v): %w", cid, input, err)
 	}
 	return nil
 }
 
-func (g *game) Outputs() <-chan multiplayer.Message {
-	return g.outputs
-}
-
-// HandleError handles a client error.
-func (g *game) HandleError(e multiplayer.ClientError) error {
-	if !g.isStarted {
-		return errors.New("game is not started")
+func (g *Game) GetPlayerState(cid multiplayer.CID) ([]byte, error) {
+	state, err := g.g.GetPlayerState(cid)
+	if err != nil {
+		return nil, fmt.Errorf("GetPlayerState: %w", err)
 	}
-	log.Printf("error: %v: %v", e.CID, e.Err)
-	return nil
+	data, err := proto.Marshal(playerStateToMessageProto(*state))
+	if err != nil {
+		return nil, fmt.Errorf("proto.Marshal: %w", err)
+	}
+	return data, nil
 }
 
 func parseInput(input []byte) (Input, error) {
@@ -128,7 +65,7 @@ func parseInput(input []byte) (Input, error) {
 	}
 }
 
-func playerStateToMessageProto(state PlayerState) *couchcampaignpb.Message {
+func playerStateToMessageProto(state starlarkgame.PlayerState) *couchcampaignpb.Message {
 	return &couchcampaignpb.Message{
 		Content: &couchcampaignpb.Message_PlayerState{
 			PlayerState: playerStateToProto(state),
@@ -136,7 +73,7 @@ func playerStateToMessageProto(state PlayerState) *couchcampaignpb.Message {
 	}
 }
 
-func playerStateToProto(state PlayerState) *couchcampaignpb.PlayerState {
+func playerStateToProto(state starlarkgame.PlayerState) *couchcampaignpb.PlayerState {
 	return &couchcampaignpb.PlayerState{
 		Id:                 state.ID,
 		Leader:             state.Leader,
@@ -152,3 +89,60 @@ func playerStateToProto(state PlayerState) *couchcampaignpb.PlayerState {
 		},
 	}
 }
+
+// oldPlayerStates := g.Ctx.SnapshotPlayerStates()
+// 	if err := g.ScriptManager.HandleInput(cid, input); err != nil {
+// 		return fmt.Errorf("HandleInput: %w", err)
+// 	}
+
+// 	for id, state := range g.Ctx.SnapshotPlayerStates() {
+// 		if oldPlayerStates[id] == state {
+// 			continue
+// 		}
+// 		data, err := proto.Marshal(playerStateToMessageProto(state))
+// 		if err != nil {
+// 			return err
+// 		}
+// 		g.outputs <- multiplayer.Message{CID: id, Data: data}
+// 	}
+// 	return nil
+
+// func (g *Game) Start() error {
+// 	g.ScriptManager = newScriptManager(g.Ctx)
+// 	if err := g.ScriptManager.LoadMainScript(scriptsFilename); err != nil {
+// 		return err
+// 	}
+
+// 	sessionStartedMessage, err := proto.Marshal(&couchcampaignpb.Message{
+// 		Content: &couchcampaignpb.Message_SessionState{
+// 			SessionState: couchcampaignpb.SessionState_RUNNING,
+// 		},
+// 	})
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	for id, state := range g.Ctx.SnapshotPlayerStates() {
+// 		playerStateMessage, err := proto.Marshal(playerStateToMessageProto(state))
+// 		if err != nil {
+// 			return err
+// 		}
+// 		// Alert the client that the session is now running.
+// 		g.outputs <- multiplayer.Message{CID: id, Data: sessionStartedMessage, SkipResponse: true}
+
+// 		// Send the client's initial state.
+// 		g.outputs <- multiplayer.Message{CID: id, Data: playerStateMessage}
+// 	}
+
+// 	return nil
+// }
+
+// func (g *Game) Outputs() <-chan multiplayer.Message {
+// 	return g.outputs
+// }
+
+// // HandleError handles a client error.
+// func (g *Game) HandleError(e multiplayer.ClientError) error {
+// 	log.Printf("error: %v: %v", e.CID, e.Err)
+// 	return nil
+// }

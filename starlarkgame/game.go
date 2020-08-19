@@ -15,6 +15,7 @@ const (
 type Game struct {
 	interpreter *Interpreter
 	state       starlark.Value
+	ctx         *Context
 }
 
 func New(ctx *Context, filename string) (*Game, error) {
@@ -26,7 +27,11 @@ func New(ctx *Context, filename string) (*Game, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new game: %w", err)
 	}
-	return &Game{interpreter: i, state: state}, nil
+	return &Game{ctx: ctx, interpreter: i, state: state}, nil
+}
+
+func (g *Game) GetPlayerState(playerID string) (*PlayerState, error) {
+	return g.ctx.GetPlayer(playerID)
 }
 
 func (g *Game) HandleInput(playerID, input string) error {

@@ -22,14 +22,6 @@ func (g *Context) PlayerIDs() []string {
 	return ids
 }
 
-func (g *Context) SnapshotPlayerStates() map[string]PlayerState {
-	snapshot := make(map[string]PlayerState)
-	for k, v := range g.players {
-		snapshot[k] = *v
-	}
-	return snapshot
-}
-
 func (g *Context) AddPlayer(id string) error {
 	if _, ok := g.players[id]; ok {
 		return fmt.Errorf("player with id %q already exists", id)

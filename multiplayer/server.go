@@ -1,7 +1,6 @@
 package multiplayer
 
 import (
-	"log"
 	"sync"
 )
 
@@ -45,31 +44,32 @@ func (s *Server) AddClient(cid CID, client *Client) {
 func (s *Server) Run(g Game) error {
 	defer s.shutdown()
 
-	for cid, client := range s.clients {
-		if err := g.AddPlayer(cid); err != nil {
-			return err
-		}
-		go client.Run(s.outgoingMessages[cid], s.incomingMessages, s.clientErrors)
-	}
+	// for cid, client := range s.clients {
+	// 	if err := g.AddPlayer(cid); err != nil {
+	// 		return err
+	// 	}
+	// 	go client.Run(s.outgoingMessages[cid], s.incomingMessages, s.clientErrors)
+	// }
 
-	if err := g.Start(); err != nil {
-		return err
-	}
+	// if err := g.Start(); err != nil {
+	// 	return err
+	// }
 
-	for {
-		select {
-		case message := <-s.incomingMessages:
-			if err := g.HandleInput(message.CID, message.Data); err != nil {
-				log.Fatal(err)
-			}
-		case message := <-g.Outputs():
-			s.outgoingMessages[message.CID] <- message
-		case err := <-s.clientErrors:
-			if err := g.HandleError(err); err != nil {
-				return err
-			}
-		}
-	}
+	// for {
+	// 	select {
+	// 	case message := <-s.incomingMessages:
+	// 		if err := g.HandleInput(message.CID, message.Data); err != nil {
+	// 			log.Fatal(err)
+	// 		}
+	// 	case message := <-g.Outputs():
+	// 		s.outgoingMessages[message.CID] <- message
+	// 	case err := <-s.clientErrors:
+	// 		if err := g.HandleError(err); err != nil {
+	// 			return err
+	// 		}
+	// 	}
+	// }
+	return nil
 }
 
 // disconnect disconnects the given client from the game.

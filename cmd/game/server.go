@@ -73,8 +73,8 @@ func (s *GameServer) start(w http.ResponseWriter, r *http.Request) {
 		server.AddClient(cid, multiplayer.NewClient(cid, conn))
 	}
 
-	go server.Run(couchcampaign.NewGame())
-	couchcampaign.Respond(w, http.StatusOK, "")
+	// go server.Run(couchcampaign.NewGame())
+	// couchcampaign.Respond(w, http.StatusOK, "")
 }
 
 func (s *GameServer) connect(w http.ResponseWriter, r *http.Request) {
