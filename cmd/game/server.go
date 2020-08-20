@@ -94,10 +94,10 @@ func (s *GameServer) connect(w http.ResponseWriter, r *http.Request) {
 		couchcampaign.RespondWithError(w, err)
 		return
 	}
-
-	nextClientID++
-	id := multiplayer.CID(fmt.Sprintf("%d", nextClientID))
-	s.server.AddClient(multiplayer.NewClient(id, conn))
+	if err := s.server.AddConnection(conn); err != nil {
+		couchcampaign.RespondWithError(w, err)
+		return
+	}
 	couchcampaign.Respond(w, http.StatusOK, "")
 }
 

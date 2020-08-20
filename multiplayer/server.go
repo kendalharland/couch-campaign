@@ -1,9 +1,12 @@
 package multiplayer
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
+	"github.com/gobuffalo/uuid"
+	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
 	pb "couchcampaign/proto"
@@ -58,6 +61,16 @@ func NewServer() *Server {
 	}
 }
 
+func (s *Server) AddConnection(c *websocket.Conn) error {
+	uuid, err := uuid.NewV4()
+	if err != nil {
+		return fmt.Errorf("failed to generate uuid: %w", err)
+	}
+	id := CID(uuid.String())
+	s.AddClient(NewClient(id, c))
+	return nil
+}
+
 func (s *Server) AddClient(client *Client) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -69,7 +82,7 @@ func (s *Server) AddClient(client *Client) {
 		Data:         lobbyStateMessage,
 		SkipResponse: true,
 	}
-	// TODO: Handle disconnect
+	// TODO: Handle disconnects.
 }
 
 func (s *Server) NClients() int {
