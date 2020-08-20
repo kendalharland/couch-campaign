@@ -16,7 +16,7 @@ type Game struct {
 	g *starlarkgame.Game
 }
 
-func NewGame(playerIDs []multiplayer.CID) (*Game, error) {
+func NewGame(playerIDs []multiplayer.CID) (multiplayer.Game, error) {
 	ctx := starlarkgame.NewContext()
 	for _, id := range playerIDs {
 		ctx.AddPlayer(id)

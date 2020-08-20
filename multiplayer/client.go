@@ -7,18 +7,6 @@ import (
 // CID is a type alias for a client ID.
 type CID = string
 
-// Message represents a message sent between the server and the client.
-type Message struct {
-	CID  CID
-	Data []byte
-
-	// Whether to wait for a response to this message before processing the next one.
-	//
-	// This is only used on the server-side to send multiple messages to a client without
-	// waiting for a response.
-	SkipResponse bool
-}
-
 // ClientError represents an error in server-client communication.
 type ClientError struct {
 	CID CID
@@ -37,6 +25,10 @@ func NewClient(id CID, ws *websocket.Conn) *Client {
 		id: id,
 		ws: newConcurrentWebsocket(ws),
 	}
+}
+
+func (w *Client) ID() string {
+	return w.id
 }
 
 // Run executes all client updates from the input channel.
