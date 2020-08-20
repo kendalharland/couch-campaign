@@ -3,7 +3,32 @@ package multiplayer
 import (
 	"log"
 	"sync"
+
+	"google.golang.org/protobuf/proto"
+
+	pb "couchcampaign/proto"
 )
+
+var (
+	lobbyStateMessage,
+	runningStateMessage []byte
+)
+
+func init() {
+	prot := &pb.Message{Content: &pb.Message_SessionState{SessionState: pb.SessionState_LOBBY}}
+	data, err := proto.Marshal(prot)
+	if err != nil {
+		log.Fatalf("proto.Marshal(%+v): %v", prot, err)
+	}
+	lobbyStateMessage = data
+
+	prot = &pb.Message{Content: &pb.Message_SessionState{SessionState: pb.SessionState_RUNNING}}
+	data, err = proto.Marshal(prot)
+	if err != nil {
+		log.Fatalf("proto.Marshal(%+v): %v", prot, err)
+	}
+	runningStateMessage = data
+}
 
 // Server drives a server-side game session.
 //
@@ -37,10 +62,14 @@ func (s *Server) AddClient(client *Client) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// TODO: Handle disconnect
-
 	s.clients[client.ID()] = client
 	s.outs[client.ID()] = make(chan Message, 2)
+	s.outs[client.ID()] <- Message{
+		CID:          client.ID(),
+		Data:         lobbyStateMessage,
+		SkipResponse: true,
+	}
+	// TODO: Handle disconnect
 }
 
 func (s *Server) NClients() int {
@@ -50,10 +79,6 @@ func (s *Server) NClients() int {
 	return len(s.clients)
 }
 
-func (s *Server) Send(m Message) {
-	s.outs[m.CID] <- m
-}
-
 // Run starts the game loop.
 func (s *Server) Run(build GameBuilder) error {
 	defer s.shutdown()
@@ -61,6 +86,11 @@ func (s *Server) Run(build GameBuilder) error {
 	ids := make([]CID, 0, len(s.clients))
 	for id, client := range s.clients {
 		ids = append(ids, id)
+		s.outs[id] <- Message{
+			CID:          id,
+			Data:         runningStateMessage,
+			SkipResponse: true,
+		}
 		go client.Run(s.outs[id], s.ins, s.errs)
 	}
 
@@ -94,5 +124,4 @@ func (s *Server) disconnect(id CID) {
 func (s *Server) shutdown() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 }

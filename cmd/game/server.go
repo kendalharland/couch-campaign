@@ -4,17 +4,14 @@ import (
 	"couchcampaign"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"sync"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"google.golang.org/protobuf/proto"
 
 	"couchcampaign/multiplayer"
-	pb "couchcampaign/proto"
 )
 
 var (
@@ -72,6 +69,8 @@ func (s *GameServer) start(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go s.server.Run(multiplayer.GameBuilder(couchcampaign.NewGame))
+
+	// TODO: Broadcast session started.
 	couchcampaign.Respond(w, http.StatusOK, "")
 	s.isGameRunning = true
 }
@@ -99,22 +98,7 @@ func (s *GameServer) connect(w http.ResponseWriter, r *http.Request) {
 	nextClientID++
 	id := multiplayer.CID(fmt.Sprintf("%d", nextClientID))
 	s.server.AddClient(multiplayer.NewClient(id, conn))
-
-	data, err := proto.Marshal(&pb.Message{
-		Content: &pb.Message_SessionState{
-			SessionState: pb.SessionState_LOBBY,
-		},
-	})
-	if err != nil {
-		couchcampaign.RespondWithError(w, err)
-		log.Fatal(err)
-	}
-
-	s.server.Send(multiplayer.Message{
-		CID:          id,
-		Data:         data,
-		SkipResponse: true,
-	})
+	couchcampaign.Respond(w, http.StatusOK, "")
 }
 
 func (s *GameServer) socket(w http.ResponseWriter, r *http.Request) {
@@ -133,15 +117,6 @@ func (s *GameServer) status(w http.ResponseWriter, r *http.Request) {
 
 	couchcampaign.Respond(w, http.StatusOK, fmt.Sprintf(`Players: (%d/%d)`, s.server.NClients(), maxPlayerCount))
 }
-
-// 	sessionStartedMessage, err := proto.Marshal(&couchcampaignpb.Message{
-// 		Content: &couchcampaignpb.Message_SessionState{
-// 			SessionState: couchcampaignpb.SessionState_RUNNING,
-// 		},
-// 	})
-// 	if err != nil {
-// 		return err
-// 	}
 
 // 	for id, state := range g.Ctx.SnapshotPlayerStates() {
 // 		playerStateMessage, err := proto.Marshal(playerStateToMessageProto(state))
