@@ -30,12 +30,12 @@ func New(ctx *Context, filename string) (*Game, error) {
 	return &Game{ctx: ctx, interpreter: i, state: state}, nil
 }
 
-func (g *Game) GetPlayerState(playerID string) (*PlayerState, error) {
-	return g.ctx.GetPlayer(playerID)
+func (g *Game) GetPlayerState() PlayerState {
+	return g.ctx.GetPlayerState()
 }
 
-func (g *Game) HandleInput(playerID, input string) error {
-	args := starlark.Tuple{g.state, starlark.String(playerID), starlark.String(input)}
+func (g *Game) HandleInput(input string) error {
+	args := starlark.Tuple{g.state, starlark.String(input)}
 	state, err := g.interpreter.Call(fnHandleInput, args, nil)
 	if err != nil {
 		return err

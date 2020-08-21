@@ -1,24 +1,58 @@
 package couchcampaign
 
 import (
+	"couchcampaign/starlarkgame"
 	"testing"
-)
 
-const (
-	p1 = "p1"
-	p2 = "p2"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestGame(t *testing.T) {
-	game, err := NewGame([]string{p1, p2})
+	game, err := NewGame()
 	if err != nil {
 		t.Fatalf("NewGame got unexpected error: %v", err)
 	}
-	if err := game.HandleInput(p1, []byte(InputCardAccepted)); err != nil {
-		t.Fatalf("HandleInput(%q, %q) unexpected error %v", p1, InputCardAccepted, err)
+
+	ps := game.GetPlayerState()
+	want := starlarkgame.PlayerState{
+		// Card attributes.
+		CardID:         "viral_infection",
+		CardSpeaker:    "",
+		CardText:       "",
+		CardAcceptText: "",
+		CardRejectText: "",
+		// Societal attributes.
+		Leader:             "",
+		LeaderTimeInOffice: 0,
+		Health:             0,
+		Wealth:             0,
+		Stability:          0,
 	}
-	ps, err := game.GetPlayerState(p1)
-	if err != nil {
-		t.Fatalf("GetPlayerState(%q) unexpected error: %v", ps, err)
+	if diff := cmp.Diff(ps, want); diff != "" {
+		t.Fatalf("got diff: (-want,+got)\n%s\n", diff)
+	}
+
+	if err := game.HandleInput([]byte(InputCardAccepted)); err != nil {
+		t.Fatalf("HandleInput(%q) unexpected error %v", InputCardAccepted, err)
+	}
+
+	// TODO: The card should have been updated from the deck here.
+	ps = game.GetPlayerState()
+	want = starlarkgame.PlayerState{
+		// Card attributes.
+		CardID:         "viral_infection",
+		CardSpeaker:    "",
+		CardText:       "",
+		CardAcceptText: "",
+		CardRejectText: "",
+		// Societal attributes.
+		Leader:             "",
+		LeaderTimeInOffice: 0,
+		Health:             -2,
+		Wealth:             2,
+		Stability:          0,
+	}
+	if diff := cmp.Diff(ps, want); diff != "" {
+		t.Fatalf("got diff: (-want,+got)\n%s\n", diff)
 	}
 }

@@ -17,13 +17,13 @@ def _add_stability(amount):
     return struct(id=ADD_STABILITY, amount=amount)
 
 
-def _apply(player_id, effect):
+def _apply(effect):
     if effect.id == ADD_HEALTH:
-        core.add_player_health(player_id, effect.amount)
+        core.add_player_health(effect.amount)
     elif effect.id == ADD_WEALTH:
-        core.add_player_wealth(player_id, effect.amount)
+        core.add_player_wealth(effect.amount)
     elif effect.id == ADD_STABILITY:
-        core.add_player_stability(player_id, effect.amount)
+        core.add_player_stability(effect.amount)
 
 
 effect = struct(
