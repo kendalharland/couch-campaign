@@ -15,13 +15,11 @@ func TestGame(t *testing.T) {
 
 	ps := game.GetPlayerState()
 	want := starlarkgame.PlayerState{
-		// Card attributes.
-		CardID:         "viral_infection",
-		CardSpeaker:    "",
-		CardText:       "",
-		CardAcceptText: "",
-		CardRejectText: "",
-		// Societal attributes.
+		CardID:             "viral_infection",
+		CardSpeaker:        "",
+		CardText:           "",
+		CardAcceptText:     "",
+		CardRejectText:     "",
 		Leader:             "",
 		LeaderTimeInOffice: 0,
 		Health:             0,
@@ -37,15 +35,14 @@ func TestGame(t *testing.T) {
 	}
 
 	// TODO: The card should have been updated from the deck here.
+
 	ps = game.GetPlayerState()
 	want = starlarkgame.PlayerState{
-		// Card attributes.
-		CardID:         "viral_infection",
-		CardSpeaker:    "",
-		CardText:       "",
-		CardAcceptText: "",
-		CardRejectText: "",
-		// Societal attributes.
+		CardID:             "viral_infection",
+		CardSpeaker:        "",
+		CardText:           "",
+		CardAcceptText:     "",
+		CardRejectText:     "",
 		Leader:             "",
 		LeaderTimeInOffice: 0,
 		Health:             -2,
