@@ -8,10 +8,9 @@ INPUT_REJECT_CARD = "reject"
 
 
 def new_game():
+    for card in stories.basic.cards:
+        core.deck.push(card.id)
     game = engine.game.new()
-    # TODO: Initialize the player's deck instead, and add the id of the top card.
-    core.set_player_card_id("viral_infection")
-
     return game
 
 
@@ -25,6 +24,7 @@ def handle_input(game, input):
     else:
         print("invalid input %s" % input)  # TODO: Add error fn.
         pass
+    core.deck.pop()
 
 
 def _on_card_shown(game):

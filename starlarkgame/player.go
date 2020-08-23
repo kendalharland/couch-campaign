@@ -4,7 +4,7 @@ package starlarkgame
 type PlayerState struct {
 	ID string
 	// Card attributes.
-	CardID         string
+	CardRef        CardRef
 	CardSpeaker    string
 	CardText       string
 	CardAcceptText string

@@ -24,6 +24,9 @@ def _apply(effect):
         core.add_player_wealth(effect.amount)
     elif effect.id == ADD_STABILITY:
         core.add_player_stability(effect.amount)
+    else:
+        # TODO: error
+        pass
 
 
 effect = struct(

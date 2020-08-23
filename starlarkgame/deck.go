@@ -1,4 +1,4 @@
-package couchcampaign
+package starlarkgame
 
 import (
 	"container/heap"
@@ -30,7 +30,7 @@ type Deck struct {
 	h *cardMinHeap
 }
 
-func newDeck() *Deck {
+func NewDeck() *Deck {
 	return &Deck{h: newCardHeap()}
 }
 

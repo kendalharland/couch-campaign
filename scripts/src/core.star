@@ -14,6 +14,14 @@ def _get_player_card_id():
     return _builtins_get_player_card_id()
 
 
+def _deck_pop_card():
+    return _builtins_deck_pop_card()
+
+
+def _deck_push_card(card_ref):
+    return _builtins_deck_push_card(card_ref)
+
+
 def _set_player_card_id(card_id):
     return _builtins_set_player_card_id(card_id)
 
@@ -25,4 +33,5 @@ core = struct(
     add_player_stability=_add_player_stability,
     get_player_card_id=_get_player_card_id,
     set_player_card_id=_set_player_card_id,
+    deck=struct(pop=_deck_pop_card, push=_deck_push_card,),
 )

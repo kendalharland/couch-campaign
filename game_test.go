@@ -15,7 +15,7 @@ func TestGame(t *testing.T) {
 
 	ps := game.GetPlayerState()
 	want := starlarkgame.PlayerState{
-		CardID:             "viral_infection",
+		CardRef:            "viral_infection",
 		CardSpeaker:        "",
 		CardText:           "",
 		CardAcceptText:     "",
@@ -27,18 +27,16 @@ func TestGame(t *testing.T) {
 		Stability:          0,
 	}
 	if diff := cmp.Diff(ps, want); diff != "" {
-		t.Fatalf("got diff: (-want,+got)\n%s\n", diff)
+		t.Fatalf("got diff: (+got,-want)\n%s\n", diff)
 	}
 
 	if err := game.HandleInput([]byte(InputCardAccepted)); err != nil {
 		t.Fatalf("HandleInput(%q) unexpected error %v", InputCardAccepted, err)
 	}
 
-	// TODO: The card should have been updated from the deck here.
-
 	ps = game.GetPlayerState()
 	want = starlarkgame.PlayerState{
-		CardID:             "viral_infection",
+		CardRef:            "tobbacco_ad",
 		CardSpeaker:        "",
 		CardText:           "",
 		CardAcceptText:     "",
@@ -50,6 +48,27 @@ func TestGame(t *testing.T) {
 		Stability:          0,
 	}
 	if diff := cmp.Diff(ps, want); diff != "" {
-		t.Fatalf("got diff: (-want,+got)\n%s\n", diff)
+		t.Fatalf("got diff: (+got,-want)\n%s\n", diff)
+	}
+
+	if err := game.HandleInput([]byte(InputCardRejected)); err != nil {
+		t.Fatalf("HandleInput(%q) unexpected error %v", InputCardRejected, err)
+	}
+
+	ps = game.GetPlayerState()
+	want = starlarkgame.PlayerState{
+		CardRef:            "",
+		CardSpeaker:        "",
+		CardText:           "",
+		CardAcceptText:     "",
+		CardRejectText:     "",
+		Leader:             "",
+		LeaderTimeInOffice: 0,
+		Health:             -4,
+		Wealth:             4,
+		Stability:          0,
+	}
+	if diff := cmp.Diff(ps, want); diff != "" {
+		t.Fatalf("got diff: (+got,-want)\n%s\n", diff)
 	}
 }

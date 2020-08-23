@@ -13,7 +13,7 @@ type Game struct {
 }
 
 func NewGame() (*Game, error) {
-	ctx := starlarkgame.NewContext()
+	ctx := starlarkgame.NewContext(*starlarkgame.NewDeck())
 	g, err := starlarkgame.New(ctx, scriptsFilename)
 	if err != nil {
 		return nil, err
