@@ -3,6 +3,8 @@ module couchcampaign
 go 1.13
 
 require (
+	github.com/faiface/pixel v0.10.0
+	github.com/faiface/pixel-examples v0.0.0-20190423111245-0d1d22b509d4 // indirect
 	github.com/gobuffalo/uuid v2.0.5+incompatible
 	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/golang/protobuf v1.4.2
