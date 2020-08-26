@@ -22,21 +22,23 @@ def handle_input(game, input):
         print("invalid input %s" % input)  # TODO: Add error fn.
         pass
     core.deck.pop()
+    print(core.player().wealth())
+    print(core.player().health())
 
 
 def _on_card_shown(game):
-    card = cards[core.get_player_card_id()]
+    card = cards[core.player().card_ref()]
     for effect in card.on_show:
         engine.effect.apply(effect)
 
 
 def _on_card_accepted(game):
-    card = cards[core.get_player_card_id()]
+    card = cards[core.player().card_ref()]
     for effect in card.on_accept:
         engine.effect.apply(effect)
 
 
 def _on_card_rejected(game):
-    card = cards[core.get_player_card_id()]
+    card = cards[core.player().card_ref()]
     for effect in card.on_reject:
         engine.effect.apply(effect)
