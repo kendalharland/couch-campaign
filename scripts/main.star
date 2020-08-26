@@ -2,7 +2,6 @@ load("//src/core.star", "core")
 load("//engine.star", "engine")
 load("//stories.star", "stories", "cards")
 
-INPUT_SHOW_CARD = "show"
 INPUT_ACCEPT_CARD = "accept"
 INPUT_REJECT_CARD = "reject"
 
@@ -15,9 +14,7 @@ def new_game():
 
 
 def handle_input(game, input):
-    if input == INPUT_SHOW_CARD:
-        _on_card_shown(game)
-    elif input == INPUT_ACCEPT_CARD:
+    if input == INPUT_ACCEPT_CARD:
         _on_card_accepted(game)
     elif input == INPUT_REJECT_CARD:
         _on_card_rejected(game)

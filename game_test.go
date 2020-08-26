@@ -30,7 +30,7 @@ func TestGame(t *testing.T) {
 		t.Fatalf("got diff: (+got,-want)\n%s\n", diff)
 	}
 
-	if err := game.HandleInput([]byte(InputCardAccepted)); err != nil {
+	if err := game.HandleInput(InputCardAccepted); err != nil {
 		t.Fatalf("HandleInput(%q) unexpected error %v", InputCardAccepted, err)
 	}
 
@@ -51,7 +51,7 @@ func TestGame(t *testing.T) {
 		t.Fatalf("got diff: (+got,-want)\n%s\n", diff)
 	}
 
-	if err := game.HandleInput([]byte(InputCardRejected)); err != nil {
+	if err := game.HandleInput(InputCardRejected); err != nil {
 		t.Fatalf("HandleInput(%q) unexpected error %v", InputCardRejected, err)
 	}
 

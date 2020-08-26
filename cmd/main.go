@@ -145,10 +145,10 @@ func fileExists(name string) bool {
 }
 
 func getInput(win *pixelgl.Window) couchcampaign.Input {
-	if win.Pressed(buttonAccept) {
+	if win.JustPressed(buttonAccept) {
 		return couchcampaign.InputCardAccepted
 	}
-	if win.Pressed(buttonReject) {
+	if win.JustPressed(buttonReject) {
 		return couchcampaign.InputCardRejected
 	}
 	return couchcampaign.NoInput
