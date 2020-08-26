@@ -4,19 +4,30 @@ import (
 	"couchcampaign"
 	"encoding/json"
 	"fmt"
+	"image/color"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
+	"github.com/faiface/pixel/text"
+	"golang.org/x/image/font/basicfont"
 )
 
 const (
 	title          = "Couch Campaign"
 	version        = 1.0
 	configFilename = "couchcampaign.json"
+)
+
+type Button = pixelgl.Button
+
+const (
+	buttonAccept Button = pixelgl.KeyD
+	buttonReject Button = pixelgl.KeyA
 )
 
 var defaultConfig = couchcampaign.Configuration{
@@ -42,10 +53,41 @@ func run() error {
 		Bounds: pixel.R(0, 0, config.WindowWidth, config.WindowHeight),
 	})
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	game, err := couchcampaign.NewGame()
+	if err != nil {
+		return err
+	}
+
+	fps := time.Tick(time.Second / 120)
+
 	for !win.Closed() {
+		<-fps
+
+		win.Clear(color.Black)
+		if err := tick(win, game); err != nil {
+			return err
+		}
 		win.Update()
+	}
+	return nil
+}
+
+func tick(win *pixelgl.Window, game *couchcampaign.Game) error {
+	ps := game.GetPlayerState()
+	basicAtlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
+	basicTxt := text.New(pixel.V(100, 500), basicAtlas)
+	fmt.Fprintln(basicTxt, ps.ToJSONString())
+	basicTxt.Draw(win, pixel.IM)
+
+	input := getInput(win)
+	if input == couchcampaign.NoInput {
+		return nil
+	}
+	if err := game.HandleInput(input); err != nil {
+		return err
 	}
 	return nil
 }
@@ -100,4 +142,14 @@ func fileExists(name string) bool {
 		return false
 	}
 	return !stat.IsDir()
+}
+
+func getInput(win *pixelgl.Window) couchcampaign.Input {
+	if win.Pressed(buttonAccept) {
+		return couchcampaign.InputCardAccepted
+	}
+	if win.Pressed(buttonReject) {
+		return couchcampaign.InputCardRejected
+	}
+	return couchcampaign.NoInput
 }
