@@ -22,9 +22,7 @@ def handle_input(game, input):
         print("invalid input %s" % input)  # TODO: Add error fn.
         pass
     core.deck.pop()
-    print(core.player().wealth())
-    print(core.player().health())
-
+    
 
 def _on_card_shown(game):
     card = cards[core.player().card_ref()]

@@ -29,3 +29,7 @@ func (s *PlayerState) ToJSONString() string {
 	}
 	return string(bytes)
 }
+
+func (s *PlayerState) IsFailed() bool {
+	return s.Wealth <= 0 || s.Health <= 0 || s.Stability <= 0
+}
