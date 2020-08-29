@@ -16,10 +16,6 @@ func TestGame(t *testing.T) {
 	ps := game.GetPlayerState()
 	want := starlarkgame.PlayerState{
 		CardRef:            "viral_infection",
-		CardSpeaker:        "",
-		CardText:           "",
-		CardAcceptText:     "",
-		CardRejectText:     "",
 		Leader:             "",
 		LeaderTimeInOffice: 0,
 		Health:             0,
@@ -37,10 +33,6 @@ func TestGame(t *testing.T) {
 	ps = game.GetPlayerState()
 	want = starlarkgame.PlayerState{
 		CardRef:            "tobbacco_ad",
-		CardSpeaker:        "",
-		CardText:           "",
-		CardAcceptText:     "",
-		CardRejectText:     "",
 		Leader:             "",
 		LeaderTimeInOffice: 0,
 		Health:             -2,
@@ -58,10 +50,6 @@ func TestGame(t *testing.T) {
 	ps = game.GetPlayerState()
 	want = starlarkgame.PlayerState{
 		CardRef:            "",
-		CardSpeaker:        "",
-		CardText:           "",
-		CardAcceptText:     "",
-		CardRejectText:     "",
 		Leader:             "",
 		LeaderTimeInOffice: 0,
 		Health:             -4,

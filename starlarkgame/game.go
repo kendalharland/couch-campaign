@@ -1,6 +1,7 @@
 package starlarkgame
 
 import (
+	"errors"
 	"fmt"
 
 	"go.starlark.net/starlark"
@@ -10,6 +11,7 @@ const (
 	fnAddPlayer   = "add_player"
 	fnHandleInput = "handle_input"
 	fnNewGame     = "new_game"
+	fnLoadCard    = "load_card"
 )
 
 type Game struct {
@@ -31,7 +33,18 @@ func New(ctx *Context, filename string) (*Game, error) {
 }
 
 func (g *Game) GetPlayerState() PlayerState {
-	return g.ctx.GetPlayerState()
+	return *(g.ctx.GetPlayerState())
+}
+
+func (g *Game) GetCurrentCard() (*Card, error) {
+	// topCard := string(g.ctx.TopCard())
+	// args := starlark.Tuple{g.state, starlark.String(topCard)}
+	// value, err := g.interpreter.Call(fnLoadCard, args, nil)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return value.(*Card), nil
+	return nil, errors.New("unimplemented: GetCurrentCard")
 }
 
 func (g *Game) HandleInput(input string) error {

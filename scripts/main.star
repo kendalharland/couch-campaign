@@ -10,6 +10,10 @@ def new_game():
     for card in stories.basic.cards:
         core.deck.push(card.id)
     game = engine.game.new()
+    core.player().set_wealth(10)
+    core.player().set_health(10)
+    core.player().set_stability(10)
+    print(core.player().wealth())
     return game
 
 
@@ -28,7 +32,6 @@ def _on_card_shown(game):
     card = cards[core.player().card_ref()]
     for effect in card.on_show:
         engine.effect.apply(effect)
-
 
 def _on_card_accepted(game):
     card = cards[core.player().card_ref()]
