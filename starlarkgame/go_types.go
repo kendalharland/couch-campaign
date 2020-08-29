@@ -175,7 +175,7 @@ func setter(_ reflect.Value, name, goName string, kind reflect.Kind) *starlark.B
 func unwrapStarlarkValue(v starlark.Value, kind reflect.Kind) interface{} {
 	switch kind {
 	case reflect.String:
-		return v.String()
+		return string(v.(starlark.String))
 	case reflect.Int8:
 		return int8(unwrapStarlarkInt(v, 8))
 	case reflect.Int16:

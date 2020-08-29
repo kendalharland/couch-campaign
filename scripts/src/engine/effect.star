@@ -19,11 +19,11 @@ def _add_stability(amount):
 
 def _apply(effect):
     if effect.id == ADD_HEALTH:
-        core.player().set_health(core.player().health() + effect.amount)
+        core.state().set_health(core.state().health() + effect.amount)
     elif effect.id == ADD_WEALTH:
-        core.player().set_wealth(core.player().wealth() + effect.amount)
+        core.state().set_wealth(core.state().wealth() + effect.amount)
     elif effect.id == ADD_STABILITY:
-        core.player().set_stability(core.player().stability() + effect.amount)
+        core.state().set_stability(core.state().stability() + effect.amount)
     else:
         # TODO: error
         pass

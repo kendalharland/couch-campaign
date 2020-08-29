@@ -1,20 +1,20 @@
 package starlarkgame
 
 type Context struct {
-	player *PlayerState
-	deck   Deck
+	state *State
+	deck  Deck
 }
 
 func NewContext(deck Deck) *Context {
-	return &Context{deck: deck, player: &PlayerState{}}
+	return &Context{deck: deck, state: &State{}}
 }
 
-func (g *Context) GetPlayerState() *PlayerState {
-	return g.player
+func (g *Context) GetState() *State {
+	return g.state
 }
 
-func (g *Context) SetPlayerState(state *PlayerState) {
-	g.player = state
+func (g *Context) SetState(state *State) {
+	g.state = state
 }
 
 func (g *Context) DeckPushCard(ref CardRef) {
@@ -22,16 +22,12 @@ func (g *Context) DeckPushCard(ref CardRef) {
 		Card:     ref,
 		Priority: MinCardPriority,
 	})
-	if g.player.CardRef == "" {
-		g.player.CardRef = g.deck.Top()
-	}
 }
 
 func (g *Context) DeckPopCard() {
 	g.deck.Pop()
-	g.player.CardRef = g.deck.Top()
 }
 
-func (g *Context) TopCard() CardRef {
+func (g *Context) DeckTopCard() CardRef {
 	return g.deck.Top()
 }

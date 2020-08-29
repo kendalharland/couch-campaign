@@ -113,9 +113,9 @@ func gameGoverningState(win *pixelgl.Window, game *couchcampaign.Game) (gameStat
 		return couchcampaign.NoInput
 	}
 
-	player := game.GetPlayerState()
+	state := game.GetState()
 	canvas := text.New(pixel.V(100, 500), text.NewAtlas(basicfont.Face7x13, text.ASCII))
-	fmt.Fprintln(canvas, player.ToJSONString())
+	fmt.Fprintln(canvas, state.ToJSONString())
 	canvas.Draw(win, pixel.IM)
 
 	input := getInput(win)
@@ -125,7 +125,7 @@ func gameGoverningState(win *pixelgl.Window, game *couchcampaign.Game) (gameStat
 	if err := game.HandleInput(input); err != nil {
 		return gameGoverningState, err
 	}
-	if player.IsFailed() {
+	if state.IsFailed() {
 		return gameFailedState, nil
 	}
 	return gameGoverningState, nil

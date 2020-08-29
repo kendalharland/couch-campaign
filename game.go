@@ -28,6 +28,6 @@ func (g *Game) HandleInput(input Input) error {
 	return nil
 }
 
-func (g *Game) GetPlayerState() starlarkgame.PlayerState {
-	return g.g.GetPlayerState()
+func (g *Game) GetState() starlarkgame.State {
+	return g.g.GetState()
 }
