@@ -38,14 +38,24 @@ var defaultConfig = couchcampaign.Configuration{
 	WindowHeight: 650,
 }
 
-var gameFont font.Face
+type G struct {
+	Font   font.Face
+	Config *couchcampaign.Configuration
+}
+
+var globalState G
 
 func init() {
 	f, err := loadTTF("assets/xolonium/ttf/Xolonium-Regular.ttf", 12)
 	if err != nil {
 		panic(err)
 	}
-	gameFont = f
+	c, err := loadConfig()
+	if err != nil {
+		panic(err)
+	}
+	globalState.Font = f
+	globalState.Config = c
 }
 
 func main() {
@@ -57,13 +67,9 @@ func main() {
 }
 
 func run() error {
-	config, err := loadConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %v", err)
-	}
 	win, err := pixelgl.NewWindow(pixelgl.WindowConfig{
 		Title:  fmt.Sprintf("%s v%v", title, version),
-		Bounds: pixel.R(0, 0, config.WindowWidth, config.WindowHeight),
+		Bounds: pixel.R(0, 0, globalState.Config.WindowWidth, globalState.Config.WindowHeight),
 	})
 	if err != nil {
 		return err
@@ -106,7 +112,7 @@ func run() error {
 type gameState func(*pixelgl.Window, *couchcampaign.Game) (gameState, error)
 
 func gameMainMenuState(win *pixelgl.Window, game *couchcampaign.Game) (gameState, error) {
-	canvas := text.New(pixel.V(100, 500), text.NewAtlas(gameFont, text.ASCII))
+	canvas := text.New(pixel.V(100, 500), text.NewAtlas(globalState.Font, text.ASCII))
 	fmt.Fprintln(canvas, "Couch Campaign")
 	fmt.Fprintln(canvas, "")
 	fmt.Fprintf(canvas, "[%s] New game\n", buttonNewGame.String())
@@ -136,7 +142,9 @@ func gamePlayingState(win *pixelgl.Window, game *couchcampaign.Game) (gameState,
 
 	state := game.GetState()
 
-	progress := text.New(pixel.V(100, 500), text.NewAtlas(gameFont, text.ASCII))
+	progress := text.New(
+		pixel.V(globalState.Config.ProgressBoxX, globalState.Config.ProgressBoxY),
+		text.NewAtlas(globalState.Font, text.ASCII))
 	fmt.Fprintf(progress, "Character: %v\n", state.Character)
 	fmt.Fprintf(progress, "Days survived: %v\n", state.CharacterLifespan)
 	progress.Draw(win, pixel.IM)
@@ -155,7 +163,7 @@ func gamePlayingState(win *pixelgl.Window, game *couchcampaign.Game) (gameState,
 }
 
 func gameFailedState(win *pixelgl.Window, game *couchcampaign.Game) (gameState, error) {
-	basicAtlas := text.NewAtlas(gameFont, text.ASCII)
+	basicAtlas := text.NewAtlas(globalState.Font, text.ASCII)
 	basicTxt := text.New(pixel.V(100, 500), basicAtlas)
 	fmt.Fprintln(basicTxt, "you failed")
 	basicTxt.Draw(win, pixel.IM)

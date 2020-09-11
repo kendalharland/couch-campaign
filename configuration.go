@@ -1,7 +1,8 @@
 package couchcampaign
 
 type Configuration struct {
-	AssetRoot    string
 	WindowWidth  float64
 	WindowHeight float64
+	ProgressBoxX float64
+	ProgressBoxY float64
 }
