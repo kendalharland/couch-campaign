@@ -5,16 +5,16 @@ import (
 )
 
 type State struct {
-	CardRef            CardRef `json:"card_ref" starlark:"card_ref,mutable"`
-	CardSpeaker        string  `json:"card_speaker" starlark:"card_speaker,mutable"`
-	CardText           string  `json:"card_text" starlark:"card_text,mutable"`
-	CardAcceptText     string  `json:"card_accept_text" starlark:"card_accept_text,mutable"`
-	CardRejectText     string  `json:"card_reject_text" starlark:"card_reject_text,mutable"`
-	Leader             string  `json:"leader"`
-	LeaderTimeInOffice int     `json:"leader_time_in_office"`
-	Health             int     `json:"health" starlark:"health,mutable"`
-	Wealth             int     `json:"wealth" starlark:"wealth,mutable"`
-	Stability          int     `json:"stability" starlark:"stability,mutable"`
+	CardRef           CardRef `json:"card_ref" starlark:"card_ref,mutable"`
+	CardSpeaker       string  `json:"card_speaker" starlark:"card_speaker,mutable"`
+	CardText          string  `json:"card_text" starlark:"card_text,mutable"`
+	CardAcceptText    string  `json:"card_accept_text" starlark:"card_accept_text,mutable"`
+	CardRejectText    string  `json:"card_reject_text" starlark:"card_reject_text,mutable"`
+	Character         string  `json:"character" starlark:"character,mutable"`
+	CharacterLifespan int     `json:"character_lifespan" starlark:"character_lifespan,mutable"`
+	Health            int     `json:"health" starlark:"health,mutable"`
+	Wealth            int     `json:"wealth" starlark:"wealth,mutable"`
+	Stability         int     `json:"stability" starlark:"stability,mutable"`
 }
 
 func (s *State) SetHealth(value int) {
@@ -47,6 +47,14 @@ func (s *State) SetCardAcceptText(value string) {
 
 func (s *State) SetCardRejectText(value string) {
 	s.CardRejectText = value
+}
+
+func (s *State) SetCharacter(value string) {
+	s.Character = value
+}
+
+func (s *State) SetCharacterLifespan(value int) {
+	s.CharacterLifespan = value
 }
 
 func (s *State) ToJSONString() string {

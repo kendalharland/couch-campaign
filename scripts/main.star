@@ -13,6 +13,7 @@ def new_game():
     state.set_wealth(10)
     state.set_health(10)
     state.set_stability(10)
+    state.set_character("you")
     _update_card(state)
     return struct()
 
@@ -26,7 +27,9 @@ def handle_input(game, input):
         print("invalid input %s" % input)  # TODO: Add error fn.
         pass
     core.deck.pop()
-    _update_card(core.state())
+    state = core.state()
+    _update_card(state)
+    state.set_character_lifespan(state.character_lifespan()+1)
     
 
 def _on_card_shown(game):

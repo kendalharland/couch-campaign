@@ -115,7 +115,7 @@ func gameMainMenuState(win *pixelgl.Window, game *couchcampaign.Game) (gameState
 
 	switch {
 	case win.JustPressed(buttonNewGame):
-		return gameGoverningState, nil
+		return gamePlayingState, nil
 	case win.JustPressed(buttonQuit):
 		return nil, errors.New("exit")
 	default:
@@ -123,7 +123,7 @@ func gameMainMenuState(win *pixelgl.Window, game *couchcampaign.Game) (gameState
 	}
 }
 
-func gameGoverningState(win *pixelgl.Window, game *couchcampaign.Game) (gameState, error) {
+func gamePlayingState(win *pixelgl.Window, game *couchcampaign.Game) (gameState, error) {
 	getInput := func(win *pixelgl.Window) couchcampaign.Input {
 		if win.JustPressed(buttonAccept) {
 			return couchcampaign.InputCardAccepted
@@ -135,21 +135,23 @@ func gameGoverningState(win *pixelgl.Window, game *couchcampaign.Game) (gameStat
 	}
 
 	state := game.GetState()
-	canvas := text.New(pixel.V(100, 500), text.NewAtlas(gameFont, text.ASCII))
-	fmt.Fprintln(canvas, state.ToJSONString())
-	canvas.Draw(win, pixel.IM)
+
+	progress := text.New(pixel.V(100, 500), text.NewAtlas(gameFont, text.ASCII))
+	fmt.Fprintf(progress, "Character: %v\n", state.Character)
+	fmt.Fprintf(progress, "Days survived: %v\n", state.CharacterLifespan)
+	progress.Draw(win, pixel.IM)
 
 	input := getInput(win)
 	if input == couchcampaign.NoInput {
-		return gameGoverningState, nil
+		return gamePlayingState, nil
 	}
 	if err := game.HandleInput(input); err != nil {
-		return gameGoverningState, err
+		return gamePlayingState, err
 	}
 	if state.IsFailed() {
 		return gameFailedState, nil
 	}
-	return gameGoverningState, nil
+	return gamePlayingState, nil
 }
 
 func gameFailedState(win *pixelgl.Window, game *couchcampaign.Game) (gameState, error) {
