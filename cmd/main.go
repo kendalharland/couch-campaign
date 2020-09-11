@@ -36,6 +36,10 @@ const (
 var defaultConfig = couchcampaign.Configuration{
 	WindowWidth:  500,
 	WindowHeight: 650,
+	ProgressBoxX: 16,
+	ProgressBoxY: 80,
+	MessageX:     16,
+	MessageY:     500,
 }
 
 type G struct {
@@ -147,7 +151,15 @@ func gamePlayingState(win *pixelgl.Window, game *couchcampaign.Game) (gameState,
 		text.NewAtlas(globalState.Font, text.ASCII))
 	fmt.Fprintf(progress, "Character: %v\n", state.Character)
 	fmt.Fprintf(progress, "Days survived: %v\n", state.CharacterLifespan)
+
+	message := text.New(
+		pixel.V(globalState.Config.MessageX, globalState.Config.MessageY),
+		text.NewAtlas(globalState.Font, text.ASCII),
+	)
+	fmt.Fprintf(message, "%s\n", state.CardText)
+
 	progress.Draw(win, pixel.IM)
+	message.Draw(win, pixel.IM)
 
 	input := getInput(win)
 	if input == couchcampaign.NoInput {
