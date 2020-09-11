@@ -72,7 +72,7 @@ func run() error {
 	if err != nil {
 		panic(err)
 	}
-	sprite := pixel.NewSprite(pic, pic.Bounds())
+	sprite := NewSpriteFromMeasurements(pic, DroidZapperWakeMeasurements, 0)
 
 	for !win.Closed() {
 		<-fps
@@ -82,7 +82,8 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		sprite.Draw(win, pixel.IM.Moved(win.Bounds().Center()))
+		center := win.Bounds().Center()
+		sprite.Draw(win, pixel.IM.Moved(center).Scaled(center, 2))
 		state = next
 		win.Update()
 	}
