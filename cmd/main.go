@@ -34,8 +34,8 @@ const (
 )
 
 var defaultConfig = couchcampaign.Configuration{
-	WindowWidth:  1024,
-	WindowHeight: 768,
+	WindowWidth:  500,
+	WindowHeight: 650,
 }
 
 func main() {
@@ -68,6 +68,12 @@ func run() error {
 
 	var state gameState = gameMainMenuState
 
+	pic, err := loadPicture("assets/droid-zapper/wake.png")
+	if err != nil {
+		panic(err)
+	}
+	sprite := pixel.NewSprite(pic, pic.Bounds())
+
 	for !win.Closed() {
 		<-fps
 
@@ -76,6 +82,7 @@ func run() error {
 		if err != nil {
 			return err
 		}
+		sprite.Draw(win, pixel.IM.Moved(win.Bounds().Center()))
 		state = next
 		win.Update()
 	}
