@@ -10,7 +10,7 @@ type State struct {
 	CardText           string  `json:"card_text" starlark:"card_text,mutable"`
 	CardAcceptText     string  `json:"card_accept_text" starlark:"card_accept_text,mutable"`
 	CardRejectText     string  `json:"card_reject_text" starlark:"card_reject_text,mutable"`
-	Leader             string  `json:"leader,mutable"`
+	Leader             string  `json:"leader"`
 	LeaderTimeInOffice int     `json:"leader_time_in_office"`
 	Health             int     `json:"health" starlark:"health,mutable"`
 	Wealth             int     `json:"wealth" starlark:"wealth,mutable"`
