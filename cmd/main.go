@@ -15,7 +15,7 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
-	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/font"
 )
 
 const (
@@ -36,6 +36,16 @@ const (
 var defaultConfig = couchcampaign.Configuration{
 	WindowWidth:  500,
 	WindowHeight: 650,
+}
+
+var gameFont font.Face
+
+func init() {
+	f, err := loadTTF("assets/xolonium/ttf/Xolonium-Regular.ttf", 12)
+	if err != nil {
+		panic(err)
+	}
+	gameFont = f
 }
 
 func main() {
@@ -72,7 +82,10 @@ func run() error {
 	if err != nil {
 		panic(err)
 	}
-	sprite := NewSpriteFromMeasurements(pic, DroidZapperWakeMeasurements, 0)
+	sprite, err := NewSpriteFromMeasurements(pic, DroidZapperWakeMeasurements, 0)
+	if err != nil {
+		panic(err)
+	}
 
 	for !win.Closed() {
 		<-fps
@@ -93,7 +106,7 @@ func run() error {
 type gameState func(*pixelgl.Window, *couchcampaign.Game) (gameState, error)
 
 func gameMainMenuState(win *pixelgl.Window, game *couchcampaign.Game) (gameState, error) {
-	canvas := text.New(pixel.V(100, 500), text.NewAtlas(basicfont.Face7x13, text.ASCII))
+	canvas := text.New(pixel.V(100, 500), text.NewAtlas(gameFont, text.ASCII))
 	fmt.Fprintln(canvas, "Couch Campaign")
 	fmt.Fprintln(canvas, "")
 	fmt.Fprintf(canvas, "[%s] New game\n", buttonNewGame.String())
@@ -122,7 +135,7 @@ func gameGoverningState(win *pixelgl.Window, game *couchcampaign.Game) (gameStat
 	}
 
 	state := game.GetState()
-	canvas := text.New(pixel.V(100, 500), text.NewAtlas(basicfont.Face7x13, text.ASCII))
+	canvas := text.New(pixel.V(100, 500), text.NewAtlas(gameFont, text.ASCII))
 	fmt.Fprintln(canvas, state.ToJSONString())
 	canvas.Draw(win, pixel.IM)
 
@@ -140,7 +153,7 @@ func gameGoverningState(win *pixelgl.Window, game *couchcampaign.Game) (gameStat
 }
 
 func gameFailedState(win *pixelgl.Window, game *couchcampaign.Game) (gameState, error) {
-	basicAtlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
+	basicAtlas := text.NewAtlas(gameFont, text.ASCII)
 	basicTxt := text.New(pixel.V(100, 500), basicAtlas)
 	fmt.Fprintln(basicTxt, "you failed")
 	basicTxt.Draw(win, pixel.IM)

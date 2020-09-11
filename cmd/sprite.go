@@ -24,10 +24,10 @@ var (
 	}
 )
 
-func NewSpriteFromMeasurements(p pixel.Picture, d SpriteMeasurements, n int) *pixel.Sprite {
+func NewSpriteFromMeasurements(p pixel.Picture, d SpriteMeasurements, n int) (*pixel.Sprite, error) {
 	var minx, miny, maxy, maxx float64
 	if n >= d.FrameCount {
-		panic(fmt.Sprintf("requested sprite frame at index %d but image only has %d frames", n, d.FrameCount))
+		return nil, fmt.Errorf("requested sprite frame at index %d but image only has %d frames", n, d.FrameCount)
 	}
 	if d.Horizontal {
 		minx = float64(n * d.Width)
@@ -40,7 +40,7 @@ func NewSpriteFromMeasurements(p pixel.Picture, d SpriteMeasurements, n int) *pi
 		miny = float64(n * d.Height)
 		maxy = float64((n + 1) * d.Height)
 	}
-	return pixel.NewSprite(p, pixel.R(minx, miny, maxx, maxy)) //pic.Bounds())
+	return pixel.NewSprite(p, pixel.R(minx, miny, maxx, maxy)), nil //pic.Bounds())
 }
 
 func loadPicture(path string) (pixel.Picture, error) {
